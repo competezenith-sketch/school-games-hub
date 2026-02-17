@@ -16,6 +16,10 @@ import Delegacoes from "@/pages/Delegacoes";
 import Inscricoes from "@/pages/Inscricoes";
 import AdminSetup from "@/pages/AdminSetup";
 import StructureManager from "@/pages/StructureManager";
+import Etapas from "@/pages/Etapas";
+import Classificacao from "@/pages/Classificacao";
+import PeriodosInscricao from "@/pages/PeriodosInscricao";
+import ValidacaoInscricoes from "@/pages/ValidacaoInscricoes";
 import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -51,6 +55,10 @@ const App = () => (
             <Route path="/dashboard/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
             <Route path="/dashboard/delegacoes" element={<ProtectedRoute><Delegacoes /></ProtectedRoute>} />
             <Route path="/dashboard/inscricoes" element={<ProtectedRoute><Inscricoes /></ProtectedRoute>} />
+            <Route path="/dashboard/etapas" element={<ProtectedRoute><Etapas /></ProtectedRoute>} />
+            <Route path="/dashboard/classificacao" element={<ProtectedRoute><Classificacao /></ProtectedRoute>} />
+            <Route path="/dashboard/periodos-inscricao" element={<ProtectedRoute><PeriodosInscricao /></ProtectedRoute>} />
+            <Route path="/dashboard/validacao-inscricoes" element={<ProtectedRoute><ValidacaoInscricoes /></ProtectedRoute>} />
             <Route path="/admin/setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
             <Route path="/admin/structure" element={<ProtectedRoute><StructureManager /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
