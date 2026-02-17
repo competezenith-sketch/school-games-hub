@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import {
   ChevronRight,
   Mountain,
   ClipboardList,
+  Cog,
 } from "lucide-react";
 
 const navItems = [
@@ -27,6 +29,7 @@ const navItems = [
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -88,6 +91,28 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
               <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-40" />
             </NavLink>
           ))}
+
+          {isAdmin && (
+            <>
+              <div className="my-3 border-t border-sidebar-border" />
+              <NavLink
+                to="/admin/setup"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-sidebar-primary/15 text-sidebar-primary"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                <Cog className="h-4 w-4" />
+                Configurações Globais
+                <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-40" />
+              </NavLink>
+            </>
+          )}
         </nav>
 
         {/* User + Powered by */}
