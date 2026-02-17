@@ -111,6 +111,22 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                 Configurações Globais
                 <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-40" />
               </NavLink>
+              <NavLink
+                to="/admin/structure"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-sidebar-primary/15 text-sidebar-primary"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                <Settings className="h-4 w-4" />
+                Modalidades / Categorias
+                <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-40" />
+              </NavLink>
             </>
           )}
         </nav>
