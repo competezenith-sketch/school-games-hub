@@ -11,6 +11,7 @@ import Regulamento from "@/pages/Regulamento";
 import Participantes from "@/pages/Participantes";
 import ResetPassword from "@/pages/ResetPassword";
 import MatchSheetPrint from "@/pages/MatchSheetPrint";
+import Resultados from "@/pages/Resultados";
 import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/dashboard/regulamento" element={<ProtectedRoute><Regulamento /></ProtectedRoute>} />
             <Route path="/dashboard/participantes" element={<ProtectedRoute><Participantes /></ProtectedRoute>} />
             <Route path="/dashboard/match-sheet-print" element={<ProtectedRoute><MatchSheetPrint /></ProtectedRoute>} />
+            <Route path="/dashboard/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

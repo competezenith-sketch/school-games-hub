@@ -13,6 +13,7 @@ import {
   Menu,
   ChevronRight,
   Mountain,
+  ClipboardList,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/dashboard/delegacoes", label: "Delegações", icon: Building2 },
   { to: "/dashboard/participantes", label: "Participantes", icon: Users },
   { to: "/dashboard/inscricoes", label: "Inscrições", icon: FileText },
+  { to: "/dashboard/resultados", label: "Resultados", icon: ClipboardList },
 ];
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
