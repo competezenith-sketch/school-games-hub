@@ -294,6 +294,112 @@ export type Database = {
           },
         ]
       }
+      matches: {
+        Row: {
+          competition_id: string
+          competition_rule_id: string | null
+          created_at: string
+          delegation_a_id: string
+          delegation_b_id: string
+          id: string
+          location: string | null
+          match_date: string | null
+          match_number: number | null
+          match_time: string | null
+          notes: string | null
+          org_id: string
+          scanned_sheet_url: string | null
+          score_a: number | null
+          score_b: number | null
+          status: string
+          updated_at: string
+          winner_delegation_id: string | null
+        }
+        Insert: {
+          competition_id: string
+          competition_rule_id?: string | null
+          created_at?: string
+          delegation_a_id: string
+          delegation_b_id: string
+          id?: string
+          location?: string | null
+          match_date?: string | null
+          match_number?: number | null
+          match_time?: string | null
+          notes?: string | null
+          org_id: string
+          scanned_sheet_url?: string | null
+          score_a?: number | null
+          score_b?: number | null
+          status?: string
+          updated_at?: string
+          winner_delegation_id?: string | null
+        }
+        Update: {
+          competition_id?: string
+          competition_rule_id?: string | null
+          created_at?: string
+          delegation_a_id?: string
+          delegation_b_id?: string
+          id?: string
+          location?: string | null
+          match_date?: string | null
+          match_number?: number | null
+          match_time?: string | null
+          notes?: string | null
+          org_id?: string
+          scanned_sheet_url?: string | null
+          score_a?: number | null
+          score_b?: number | null
+          status?: string
+          updated_at?: string
+          winner_delegation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_competition_rule_id_fkey"
+            columns: ["competition_rule_id"]
+            isOneToOne: false
+            referencedRelation: "competition_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_delegation_a_id_fkey"
+            columns: ["delegation_a_id"]
+            isOneToOne: false
+            referencedRelation: "delegations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_delegation_b_id_fkey"
+            columns: ["delegation_b_id"]
+            isOneToOne: false
+            referencedRelation: "delegations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_winner_delegation_id_fkey"
+            columns: ["winner_delegation_id"]
+            isOneToOne: false
+            referencedRelation: "delegations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modalities: {
         Row: {
           created_at: string
