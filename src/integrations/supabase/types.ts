@@ -57,6 +57,8 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          year_max: number | null
+          year_min: number | null
         }
         Insert: {
           created_at?: string
@@ -64,6 +66,8 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          year_max?: number | null
+          year_min?: number | null
         }
         Update: {
           created_at?: string
@@ -71,6 +75,8 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          year_max?: number | null
+          year_min?: number | null
         }
         Relationships: [
           {
@@ -403,24 +409,30 @@ export type Database = {
       modalities: {
         Row: {
           created_at: string
+          gender: string
           icon: string | null
           id: string
           name: string
           org_id: string
+          type: string
         }
         Insert: {
           created_at?: string
+          gender?: string
           icon?: string | null
           id?: string
           name: string
           org_id: string
+          type?: string
         }
         Update: {
           created_at?: string
+          gender?: string
           icon?: string | null
           id?: string
           name?: string
           org_id?: string
+          type?: string
         }
         Relationships: [
           {
