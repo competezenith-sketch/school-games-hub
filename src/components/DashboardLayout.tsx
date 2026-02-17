@@ -34,11 +34,15 @@ const generalItems: NavItem[] = [
   { to: "/dashboard/delegacoes", label: "Delegações", icon: Building2 },
   { to: "/dashboard/participantes", label: "Participantes", icon: Users },
   { to: "/dashboard/inscricoes", label: "Inscrições", icon: FileText },
+  { to: "/dashboard/periodos-inscricao", label: "Períodos Inscrição", icon: Trophy },
 ];
 
 const operationItems: NavItem[] = [
+  { to: "/dashboard/etapas", label: "Etapas", icon: Mountain },
   { to: "/dashboard/resultados", label: "Resultados", icon: ClipboardList },
+  { to: "/dashboard/classificacao", label: "Classificação", icon: Trophy },
   { to: "/dashboard/match-sheet-print", label: "Impressão Súmulas", icon: Printer },
+  { to: "/dashboard/validacao-inscricoes", label: "Validar Inscrições", icon: FileText },
 ];
 
 const adminItems: NavItem[] = [
