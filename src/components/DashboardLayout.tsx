@@ -50,9 +50,15 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border">
-          <Trophy className="h-5 w-5 text-sidebar-ring" />
-          <span className="font-display text-lg text-sidebar-primary">ZenithCompete</span>
+        {/* Logo area */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
+          <div className="h-9 w-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
+            <Trophy className="h-5 w-5 text-sidebar-primary-foreground" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-display text-base font-bold tracking-wide text-sidebar-accent-foreground">SportFlow</span>
+            <span className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">JER 2026</span>
+          </div>
         </div>
 
         <nav className="flex-1 py-4 space-y-1 px-3">
@@ -64,10 +70,10 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                    ? "bg-sidebar-primary/15 text-sidebar-primary"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )
               }
             >
@@ -79,12 +85,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         </nav>
 
         <div className="border-t border-sidebar-border p-4">
-          <p className="text-xs text-sidebar-foreground/60 truncate mb-2">{user?.email}</p>
+          <p className="text-xs text-sidebar-foreground/50 truncate mb-2">{user?.email}</p>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-primary hover:bg-sidebar-accent/50"
+            className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-primary hover:bg-sidebar-accent"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sair
@@ -94,7 +100,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b bg-background/95 backdrop-blur px-4 py-3 lg:px-6">
+        {/* Glass header */}
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border/60 bg-card/80 backdrop-blur-md px-4 py-3 lg:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -103,9 +110,11 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="font-display text-lg">Painel Administrativo</h1>
+          <h1 className="font-display text-lg tracking-wide">Painel Administrativo</h1>
         </header>
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        <main className="flex-1 p-4 lg:p-8">
+          <div className="mx-auto max-w-7xl">{children}</div>
+        </main>
       </div>
     </div>
   );

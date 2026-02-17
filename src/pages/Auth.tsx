@@ -47,11 +47,11 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Trophy className="h-6 w-6" />
+        <CardHeader className="text-center space-y-3">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Trophy className="h-7 w-7" />
           </div>
-          <CardTitle className="font-display text-2xl">ZenithCompete</CardTitle>
+          <CardTitle className="font-display text-2xl tracking-wide">SportFlow</CardTitle>
           <CardDescription>
             {isLogin ? "Acesse o painel de gestão" : "Crie sua conta"}
           </CardDescription>
@@ -92,7 +92,7 @@ const Auth = () => {
                 minLength={6}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? "Aguarde..." : isLogin ? "Entrar" : "Cadastrar"}
             </Button>
           </form>
