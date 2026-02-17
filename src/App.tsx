@@ -14,6 +14,7 @@ import MatchSheetPrint from "@/pages/MatchSheetPrint";
 import Resultados from "@/pages/Resultados";
 import Delegacoes from "@/pages/Delegacoes";
 import Inscricoes from "@/pages/Inscricoes";
+import AdminSetup from "@/pages/AdminSetup";
 import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/dashboard/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
             <Route path="/dashboard/delegacoes" element={<ProtectedRoute><Delegacoes /></ProtectedRoute>} />
             <Route path="/dashboard/inscricoes" element={<ProtectedRoute><Inscricoes /></ProtectedRoute>} />
+            <Route path="/admin/setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
