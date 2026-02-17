@@ -8,6 +8,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Regulamento from "@/pages/Regulamento";
+import Participantes from "@/pages/Participantes";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/dashboard/regulamento" element={<ProtectedRoute><Regulamento /></ProtectedRoute>} />
+            <Route path="/dashboard/participantes" element={<ProtectedRoute><Participantes /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
