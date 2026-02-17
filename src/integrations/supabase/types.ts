@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      administrative_fees: {
+        Row: {
+          amount_kg: number | null
+          article_ref: string | null
+          created_at: string | null
+          description: string
+          fee_code: string | null
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          amount_kg?: number | null
+          article_ref?: string | null
+          created_at?: string | null
+          description: string
+          fee_code?: string | null
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          amount_kg?: number | null
+          article_ref?: string | null
+          created_at?: string | null
+          description?: string
+          fee_code?: string | null
+          id?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
+      age_categories: {
+        Row: {
+          birth_years: string | null
+          created_at: string | null
+          event_type: string | null
+          id: string
+          max_age: number | null
+          min_age: number | null
+          name: string
+        }
+        Insert: {
+          birth_years?: string | null
+          created_at?: string | null
+          event_type?: string | null
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          name: string
+        }
+        Update: {
+          birth_years?: string | null
+          created_at?: string | null
+          event_type?: string | null
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          name?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -150,6 +210,59 @@ export type Database = {
           },
         ]
       }
+      competition_stages: {
+        Row: {
+          city: string | null
+          competition_id: string | null
+          congress_date: string | null
+          congress_time: string | null
+          created_at: string | null
+          credential_date: string | null
+          end_date: string | null
+          id: string
+          name: string | null
+          stage_number: number | null
+          stage_type: string | null
+          start_date: string | null
+        }
+        Insert: {
+          city?: string | null
+          competition_id?: string | null
+          congress_date?: string | null
+          congress_time?: string | null
+          created_at?: string | null
+          credential_date?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string | null
+          stage_number?: number | null
+          stage_type?: string | null
+          start_date?: string | null
+        }
+        Update: {
+          city?: string | null
+          competition_id?: string | null
+          congress_date?: string | null
+          congress_time?: string | null
+          created_at?: string | null
+          credential_date?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string | null
+          stage_number?: number | null
+          stage_type?: string | null
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_stages_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitions: {
         Row: {
           created_at: string
@@ -197,6 +310,42 @@ export type Database = {
           },
         ]
       }
+      delegation_staff_rules: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_required: boolean | null
+          max_athletes_trigger: number | null
+          max_count: number | null
+          min_athletes_trigger: number | null
+          min_count: number | null
+          notes: string | null
+          role_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_required?: boolean | null
+          max_athletes_trigger?: number | null
+          max_count?: number | null
+          min_athletes_trigger?: number | null
+          min_count?: number | null
+          notes?: string | null
+          role_name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_required?: boolean | null
+          max_athletes_trigger?: number | null
+          max_count?: number | null
+          min_athletes_trigger?: number | null
+          min_count?: number | null
+          notes?: string | null
+          role_name?: string
+        }
+        Relationships: []
+      }
       delegations: {
         Row: {
           city: string | null
@@ -234,6 +383,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      disciplinary_rules: {
+        Row: {
+          article_ref: string | null
+          created_at: string | null
+          description: string
+          id: string
+          penalty: string | null
+          rule_code: string | null
+        }
+        Insert: {
+          article_ref?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          penalty?: string | null
+          rule_code?: string | null
+        }
+        Update: {
+          article_ref?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          penalty?: string | null
+          rule_code?: string | null
+        }
+        Relationships: []
       }
       inscriptions: {
         Row: {
@@ -410,8 +586,10 @@ export type Database = {
         Row: {
           created_at: string
           gender: string
+          gender_type: string | null
           icon: string | null
           id: string
+          is_team_sport: boolean | null
           name: string
           org_id: string
           type: string
@@ -419,8 +597,10 @@ export type Database = {
         Insert: {
           created_at?: string
           gender?: string
+          gender_type?: string | null
           icon?: string | null
           id?: string
+          is_team_sport?: boolean | null
           name: string
           org_id: string
           type?: string
@@ -428,8 +608,10 @@ export type Database = {
         Update: {
           created_at?: string
           gender?: string
+          gender_type?: string | null
           icon?: string | null
           id?: string
+          is_team_sport?: boolean | null
           name?: string
           org_id?: string
           type?: string
@@ -444,6 +626,54 @@ export type Database = {
           },
         ]
       }
+      modality_athlete_limits: {
+        Row: {
+          age_category_id: string | null
+          created_at: string | null
+          gender: string | null
+          id: string
+          is_national_qualifier: boolean | null
+          max_athletes: number | null
+          min_athletes: number | null
+          modality_id: string | null
+        }
+        Insert: {
+          age_category_id?: string | null
+          created_at?: string | null
+          gender?: string | null
+          id?: string
+          is_national_qualifier?: boolean | null
+          max_athletes?: number | null
+          min_athletes?: number | null
+          modality_id?: string | null
+        }
+        Update: {
+          age_category_id?: string | null
+          created_at?: string | null
+          gender?: string | null
+          id?: string
+          is_national_qualifier?: boolean | null
+          max_athletes?: number | null
+          min_athletes?: number | null
+          modality_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modality_athlete_limits_age_category_id_fkey"
+            columns: ["age_category_id"]
+            isOneToOne: false
+            referencedRelation: "age_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "modality_athlete_limits_modality_id_fkey"
+            columns: ["modality_id"]
+            isOneToOne: false
+            referencedRelation: "modalities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -452,6 +682,7 @@ export type Database = {
           name: string
           slug: string
           state: string | null
+          type: string | null
           updated_at: string
         }
         Insert: {
@@ -461,6 +692,7 @@ export type Database = {
           name: string
           slug: string
           state?: string | null
+          type?: string | null
           updated_at?: string
         }
         Update: {
@@ -470,6 +702,7 @@ export type Database = {
           name?: string
           slug?: string
           state?: string | null
+          type?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -568,6 +801,139 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      registration_periods: {
+        Row: {
+          close_date: string | null
+          competition_id: string | null
+          created_at: string | null
+          enrollment_url: string | null
+          event_type: string | null
+          id: string
+          notes: string | null
+          open_date: string | null
+        }
+        Insert: {
+          close_date?: string | null
+          competition_id?: string | null
+          created_at?: string | null
+          enrollment_url?: string | null
+          event_type?: string | null
+          id?: string
+          notes?: string | null
+          open_date?: string | null
+        }
+        Update: {
+          close_date?: string | null
+          competition_id?: string | null
+          created_at?: string | null
+          enrollment_url?: string | null
+          event_type?: string | null
+          id?: string
+          notes?: string | null
+          open_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_periods_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scoring_rules: {
+        Row: {
+          competition_id: string | null
+          created_at: string | null
+          id: string
+          placement: number
+          points: number
+        }
+        Insert: {
+          competition_id?: string | null
+          created_at?: string | null
+          id?: string
+          placement: number
+          points: number
+        }
+        Update: {
+          competition_id?: string | null
+          created_at?: string | null
+          id?: string
+          placement?: number
+          points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scoring_rules_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stage_team_quotas: {
+        Row: {
+          city: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          quota: number
+        }
+        Insert: {
+          city: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          quota: number
+        }
+        Update: {
+          city?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          quota?: number
+        }
+        Relationships: []
+      }
+      uniform_rules: {
+        Row: {
+          applies_to: string | null
+          article_ref: string | null
+          created_at: string | null
+          id: string
+          item_type: string | null
+          label: string
+          max_applications: number | null
+          max_area_cm2: number | null
+          notes: string | null
+        }
+        Insert: {
+          applies_to?: string | null
+          article_ref?: string | null
+          created_at?: string | null
+          id?: string
+          item_type?: string | null
+          label: string
+          max_applications?: number | null
+          max_area_cm2?: number | null
+          notes?: string | null
+        }
+        Update: {
+          applies_to?: string | null
+          article_ref?: string | null
+          created_at?: string | null
+          id?: string
+          item_type?: string | null
+          label?: string
+          max_applications?: number | null
+          max_area_cm2?: number | null
+          notes?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
