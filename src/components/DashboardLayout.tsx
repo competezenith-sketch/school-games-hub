@@ -11,8 +11,8 @@ import {
   Building2,
   LogOut,
   Menu,
-  X,
   ChevronRight,
+  Mountain,
 } from "lucide-react";
 
 const navItems = [
@@ -50,18 +50,22 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Logo area */}
+        {/* Client logo area */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-          <div className="h-9 w-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <Trophy className="h-5 w-5 text-sidebar-primary-foreground" />
+          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
+            <Trophy className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div className="flex flex-col">
-            <span className="font-display text-base font-bold tracking-wide text-sidebar-accent-foreground">SportFlow</span>
-            <span className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">JER 2026</span>
+          <div className="flex flex-col min-w-0">
+            <span className="font-display text-base font-bold tracking-wider text-sidebar-accent-foreground truncate">
+              JER 2026
+            </span>
+            <span className="text-[10px] uppercase tracking-widest text-sidebar-foreground/40">
+              Jogos Escolares
+            </span>
           </div>
         </div>
 
-        <nav className="flex-1 py-4 space-y-1 px-3">
+        <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -84,17 +88,26 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           ))}
         </nav>
 
-        <div className="border-t border-sidebar-border p-4">
-          <p className="text-xs text-sidebar-foreground/50 truncate mb-2">{user?.email}</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-primary hover:bg-sidebar-accent"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
-          </Button>
+        {/* User + Powered by */}
+        <div className="border-t border-sidebar-border p-4 space-y-3">
+          <div>
+            <p className="text-xs text-sidebar-foreground/50 truncate mb-2">{user?.email}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-primary hover:bg-sidebar-accent"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </Button>
+          </div>
+          <div className="flex items-center gap-1.5 pt-2 border-t border-sidebar-border">
+            <Mountain className="h-3 w-3 text-sidebar-foreground/30" />
+            <span className="text-[10px] text-sidebar-foreground/30 tracking-wide">
+              Powered by <span className="font-semibold">Zenith Compete</span>
+            </span>
+          </div>
         </div>
       </aside>
 
@@ -110,7 +123,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="font-display text-lg tracking-wide">Painel Administrativo</h1>
+          <h1 className="font-display text-lg tracking-wider">Painel Administrativo</h1>
         </header>
         <main className="flex-1 p-4 lg:p-8">
           <div className="mx-auto max-w-7xl">{children}</div>
