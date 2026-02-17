@@ -8,8 +8,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Regulamento from "@/pages/Regulamento";
+import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
-
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -36,6 +36,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<AuthRoute />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/dashboard/regulamento" element={<ProtectedRoute><Regulamento /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
