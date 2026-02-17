@@ -113,3 +113,31 @@
     letter-spacing: 0.025em;
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide everything except the print content */
+  .print\\:hidden,
+  aside,
+  header:not(.match-sheet-print *) {
+    display: none !important;
+  }
+
+  /* Remove layout constraints */
+  .match-sheet-print {
+    max-width: none !important;
+    padding: 10mm !important;
+    margin: 0 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 5mm;
+  }
+}
