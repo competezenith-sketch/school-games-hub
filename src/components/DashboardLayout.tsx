@@ -4,9 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import {
   Trophy,
-  Settings,
   Users,
   FileText,
   Building2,
@@ -16,22 +16,81 @@ import {
   Mountain,
   ClipboardList,
   Cog,
+  LayoutGrid,
+  ScrollText,
+  Printer,
+  BarChart3,
 } from "lucide-react";
 
-const navItems = [
-  { to: "/dashboard", label: "Visão Geral", icon: Trophy },
-  { to: "/dashboard/regulamento", label: "Regulamento", icon: Settings },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  end?: boolean;
+}
+
+const generalItems: NavItem[] = [
+  { to: "/dashboard", label: "Visão Geral", icon: BarChart3, end: true },
   { to: "/dashboard/delegacoes", label: "Delegações", icon: Building2 },
   { to: "/dashboard/participantes", label: "Participantes", icon: Users },
   { to: "/dashboard/inscricoes", label: "Inscrições", icon: FileText },
-  { to: "/dashboard/resultados", label: "Resultados", icon: ClipboardList },
 ];
+
+const operationItems: NavItem[] = [
+  { to: "/dashboard/resultados", label: "Resultados", icon: ClipboardList },
+  { to: "/dashboard/match-sheet-print", label: "Impressão Súmulas", icon: Printer },
+];
+
+const adminItems: NavItem[] = [
+  { to: "/admin/setup", label: "Configurações Globais", icon: Cog },
+  { to: "/admin/structure", label: "Estrutura do Evento", icon: LayoutGrid },
+  { to: "/dashboard/regulamento", label: "Regulamento", icon: ScrollText },
+];
+
+function SidebarNavItem({ item, onClick }: { item: NavItem; onClick: () => void }) {
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      onClick={onClick}
+      className={({ isActive }) =>
+        cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          isActive
+            ? "bg-sidebar-primary/15 text-sidebar-primary"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        )
+      }
+    >
+      <item.icon className="h-4 w-4" />
+      {item.label}
+      <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-40" />
+    </NavLink>
+  );
+}
+
+function SidebarGroup({ label, items, onClick }: { label: string; items: NavItem[]; onClick: () => void }) {
+  return (
+    <div>
+      <p className="px-3 mb-1 text-[10px] uppercase tracking-widest text-sidebar-foreground/40 font-semibold">
+        {label}
+      </p>
+      <div className="space-y-0.5">
+        {items.map((item) => (
+          <SidebarNavItem key={item.to} item={item} onClick={onClick} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const closeSidebar = () => setSidebarOpen(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,7 +103,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-foreground/30 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
@@ -70,64 +129,11 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </div>
 
-        <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/dashboard"}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-primary/15 text-sidebar-primary"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                )
-              }
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-              <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-40" />
-            </NavLink>
-          ))}
-
+        <nav className="flex-1 py-4 space-y-5 px-3 overflow-y-auto">
+          <SidebarGroup label="Geral" items={generalItems} onClick={closeSidebar} />
+          <SidebarGroup label="Operação" items={operationItems} onClick={closeSidebar} />
           {isAdmin && (
-            <>
-              <div className="my-3 border-t border-sidebar-border" />
-              <NavLink
-                to="/admin/setup"
-                onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-sidebar-primary/15 text-sidebar-primary"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  )
-                }
-              >
-                <Cog className="h-4 w-4" />
-                Configurações Globais
-                <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-40" />
-              </NavLink>
-              <NavLink
-                to="/admin/structure"
-                onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-sidebar-primary/15 text-sidebar-primary"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  )
-                }
-              >
-                <Settings className="h-4 w-4" />
-                Modalidades / Categorias
-                <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-40" />
-              </NavLink>
-            </>
+            <SidebarGroup label="Configuração" items={adminItems} onClick={closeSidebar} />
           )}
         </nav>
 
@@ -169,7 +175,10 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           <h1 className="font-display text-lg tracking-wider">Painel Administrativo</h1>
         </header>
         <main className="flex-1 p-4 lg:p-8">
-          <div className="mx-auto max-w-7xl">{children}</div>
+          <div className="mx-auto max-w-7xl">
+            <Breadcrumbs />
+            {children}
+          </div>
         </main>
       </div>
     </div>
