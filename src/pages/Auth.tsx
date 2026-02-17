@@ -4,15 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Trophy } from "lucide-react";
+import { Mountain, Loader2 } from "lucide-react";
+import loginHero from "@/assets/login-hero.jpg";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -21,22 +19,9 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate("/dashboard");
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { full_name: fullName },
-          },
-        });
-        if (error) throw error;
-        toast.success("Cadastro realizado! Verifique seu e-mail para confirmar.");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      navigate("/dashboard");
     } catch (err: any) {
       toast.error(err.message || "Erro na autenticação");
     } finally {
@@ -45,69 +30,108 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-3">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Trophy className="h-7 w-7" />
+    <div className="min-h-screen flex">
+      {/* Left — Hero visual */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <img
+          src={loginHero}
+          alt="Jovens praticando esporte"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        {/* Dark green gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-primary/70 to-sidebar/90" />
+
+        <div className="relative z-10 flex flex-col justify-end p-12 pb-16 animate-fade-in-left">
+          <h1 className="font-display text-5xl leading-tight text-primary-foreground drop-shadow-lg max-w-md">
+            O Futuro do Esporte Começa Aqui
+          </h1>
+          <p className="mt-4 text-primary-foreground/80 text-lg max-w-sm">
+            Plataforma oficial dos Jogos Escolares de Roraima 2026
+          </p>
+        </div>
+      </div>
+
+      {/* Right — Login form */}
+      <div className="flex-1 flex flex-col items-center justify-center bg-background px-6 py-12 animate-fade-in-right">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Client logo area */}
+          <div className="text-center space-y-3">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg">
+              <span className="font-display text-2xl font-bold text-primary-foreground">JER</span>
+            </div>
+            <div>
+              <h2 className="font-display text-2xl tracking-wider text-foreground">
+                JER 2026
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Jogos Escolares de Roraima
+              </p>
+            </div>
           </div>
-          <CardTitle className="font-display text-2xl tracking-wide">SportFlow</CardTitle>
-          <CardDescription>
-            {isLogin ? "Acesse o painel de gestão" : "Crie sua conta"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Nome completo</Label>
-                <Input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required={!isLogin}
-                  maxLength={100}
-                />
-              </div>
-            )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email" className="text-sm font-medium text-muted-foreground">
+                E-mail
+              </Label>
               <Input
                 id="email"
                 type="email"
+                placeholder="seu@email.gov.br"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 maxLength={255}
+                className="bg-card"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-sm font-medium text-muted-foreground">
+                Senha
+              </Label>
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
+                className="bg-card"
               />
             </div>
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? "Aguarde..." : isLogin ? "Entrar" : "Cadastrar"}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full shadow-lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                "Acessar Plataforma"
+              )}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            {isLogin ? "Não tem conta?" : "Já tem conta?"}{" "}
+
+          {/* Footer */}
+          <div className="text-center space-y-2 pt-4 border-t border-border">
+            <div className="flex items-center justify-center gap-1.5">
+              <Mountain className="h-3.5 w-3.5 text-muted-foreground/50" />
+              <span className="text-xs text-muted-foreground/60">
+                Desenvolvido por <span className="font-semibold">Zenith Compete</span>
+              </span>
+            </div>
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary underline-offset-4 hover:underline font-medium"
+              className="text-xs text-primary hover:underline underline-offset-4"
             >
-              {isLogin ? "Cadastre-se" : "Fazer login"}
+              Suporte Técnico
             </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
