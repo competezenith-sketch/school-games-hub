@@ -603,7 +603,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      inscription_status: "pendente" | "validado" | "rejeitado"
+      inscription_status:
+        | "pendente"
+        | "validado"
+        | "rejeitado"
+        | "rascunho"
+        | "enviado"
       participant_role:
         | "atleta"
         | "tecnico"
@@ -739,7 +744,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      inscription_status: ["pendente", "validado", "rejeitado"],
+      inscription_status: [
+        "pendente",
+        "validado",
+        "rejeitado",
+        "rascunho",
+        "enviado",
+      ],
       participant_role: [
         "atleta",
         "tecnico",
