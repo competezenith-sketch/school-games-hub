@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PhotoUpload from "@/components/PhotoUpload";
 import { toast } from "sonner";
+import AthleteIDCardModal from "@/components/AthleteIDCardModal";
 import { Loader2, Plus, Users } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -201,9 +202,14 @@ const Participantes = () => {
                 <p className="font-medium text-sm truncate">{p.full_name}</p>
                 <p className="text-xs text-muted-foreground">{roleLabels[p.role] || p.role}</p>
               </div>
-              {p.sex && (
-                <span className="text-xs text-muted-foreground font-medium">{p.sex}</span>
-              )}
+              <AthleteIDCardModal
+                athleteId={p.id}
+                fullName={p.full_name}
+                photoUrl={p.photo_url}
+                role={p.role}
+                delegation={p.delegations?.name}
+                sex={p.sex}
+              />
             </Card>
           ))}
         </div>
