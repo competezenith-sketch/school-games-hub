@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Loader2, Plus, Dumbbell, Tag, ChevronRight } from "lucide-react";
@@ -94,6 +94,7 @@ function ModalitiesSection({
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="font-display tracking-wider">Nova Modalidade</DialogTitle>
+              <DialogDescription>Selecione ou digite o nome da modalidade</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
@@ -266,6 +267,7 @@ function CategoriesSection({
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="font-display tracking-wider">Nova Categoria</DialogTitle>
+              <DialogDescription>Defina o nome e a faixa etária da categoria</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">

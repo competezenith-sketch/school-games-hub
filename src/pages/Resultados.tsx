@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge, type StatusType } from "@/components/StatusBadge";
 import { toast } from "sonner";
 import { Loader2, Upload, Trophy, Calendar, MapPin, Clock } from "lucide-react";
@@ -232,6 +232,7 @@ const Resultados = () => {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-display tracking-wider">Lançar Resultado</DialogTitle>
+            <DialogDescription>Preencha o placar e o status do jogo</DialogDescription>
           </DialogHeader>
 
           {selectedMatch && (
