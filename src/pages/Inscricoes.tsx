@@ -10,6 +10,37 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+// Adicione 'Check' e 'ChevronsUpDown' aos imports do lucide-react
+import {
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+  Users,
+  UserPlus,
+  UserMinus,
+  CheckCircle2,
+  AlertTriangle,
+  Send,
+  Info,
+  Check,             // <--- Novo
+  ChevronsUpDown,    // <--- Novo
+} from "lucide-react";
+
+// Adicione estes imports para o funcionamento do combobox
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Loader2,
   ChevronRight,
