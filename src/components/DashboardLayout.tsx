@@ -20,6 +20,13 @@ import {
   ScrollText,
   Printer,
   BarChart3,
+  Users2,
+  Target,
+  MapPinned,
+  UserCheck,
+  ShieldAlert,
+  Shirt,
+  DollarSign,
 } from "lucide-react";
 
 interface NavItem {
@@ -49,6 +56,13 @@ const adminItems: NavItem[] = [
   { to: "/admin/setup", label: "Configurações Globais", icon: Cog },
   { to: "/admin/structure", label: "Estrutura do Evento", icon: LayoutGrid },
   { to: "/dashboard/regulamento", label: "Regulamento", icon: ScrollText },
+  { to: "/admin/categorias-etarias", label: "Categorias Etárias", icon: Users2 },
+  { to: "/admin/limites-atletas", label: "Limites de Atletas", icon: Target },
+  { to: "/admin/vagas-sede", label: "Vagas por Sede", icon: MapPinned },
+  { to: "/admin/regras-staff", label: "Regras de Staff", icon: UserCheck },
+  { to: "/admin/regras-disciplinares", label: "Regras Disciplinares", icon: ShieldAlert },
+  { to: "/admin/regras-uniforme", label: "Regras de Uniforme", icon: Shirt },
+  { to: "/admin/taxas-administrativas", label: "Taxas Administrativas", icon: DollarSign },
 ];
 
 function SidebarNavItem({ item, onClick }: { item: NavItem; onClick: () => void }) {
