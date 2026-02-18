@@ -36,6 +36,7 @@ const Participantes = () => {
   const [sex, setSex] = useState<string>("");
   const [birthDate, setBirthDate] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [delegationId, setDelegationId] = useState<string>("");
 
   const { data: participants = [], isLoading } = useQuery({
     queryKey: ["participants"],
@@ -44,6 +45,15 @@ const Participantes = () => {
         .from("participants")
         .select("*, delegations(name)")
         .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: delegations = [] } = useQuery({
+    queryKey: ["delegations-for-participants"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("delegations").select("id, name").order("name");
       if (error) throw error;
       return data;
     },
@@ -68,6 +78,7 @@ const Participantes = () => {
         birth_date: birthDate || null,
         photo_url: photoUrl,
         org_id: profile.org_id,
+        delegation_id: delegationId || null,
       });
       if (error) throw error;
     },
@@ -86,6 +97,7 @@ const Participantes = () => {
     setSex("");
     setBirthDate("");
     setPhotoUrl(null);
+    setDelegationId("");
     setShowForm(false);
   };
 
@@ -161,6 +173,17 @@ const Participantes = () => {
                 <div className="space-y-2">
                   <Label htmlFor="birthDate">Data de nascimento</Label>
                   <Input id="birthDate" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Delegação</Label>
+                  <Select value={delegationId} onValueChange={setDelegationId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {delegations.map((d: any) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="sm:col-span-2 flex gap-3 pt-2">
                   <Button type="submit" disabled={createMutation.isPending}>

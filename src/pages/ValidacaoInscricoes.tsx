@@ -67,13 +67,13 @@ const ValidacaoInscricoes = () => {
           delegation:delegations(id, name),
           competition_rule:competition_rules(
             id,
+            competition_id,
             modality:modalities(name),
             category:categories(name)
           )
         `)
         .eq("org_id", orgId);
 
-      // Filter by competition through competition_rule
       if (filterStatus) {
         query = query.eq("status", filterStatus as any);
       }
@@ -81,10 +81,10 @@ const ValidacaoInscricoes = () => {
       const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
 
-      // Client-side filter by competition if needed
+      // Filter by competition through competition_rule
       if (competitionId) {
         return (data as any[]).filter(
-          (i) => i.competition_rule?.id && true // Already filtered by org
+          (i) => i.competition_rule?.competition_id === competitionId
         );
       }
       return data;

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -79,7 +79,10 @@ const RegrasStaff = () => {
             <Button><Plus className="h-4 w-4 mr-2" /> Nova Regra</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle className="font-display tracking-wider">Nova Regra de Staff</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle className="font-display tracking-wider">Nova Regra de Staff</DialogTitle>
+              <DialogDescription>Defina as regras de composição da comissão técnica</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label>Função</Label>

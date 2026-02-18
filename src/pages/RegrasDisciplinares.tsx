@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Loader2, Plus, ShieldAlert, Trash2 } from "lucide-react";
@@ -71,7 +71,10 @@ const RegrasDisciplinares = () => {
             <Button><Plus className="h-4 w-4 mr-2" /> Nova Regra</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle className="font-display tracking-wider">Nova Regra Disciplinar</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle className="font-display tracking-wider">Nova Regra Disciplinar</DialogTitle>
+              <DialogDescription>Defina a infração e a penalidade aplicável</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
