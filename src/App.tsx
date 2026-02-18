@@ -20,6 +20,13 @@ import Etapas from "@/pages/Etapas";
 import Classificacao from "@/pages/Classificacao";
 import PeriodosInscricao from "@/pages/PeriodosInscricao";
 import ValidacaoInscricoes from "@/pages/ValidacaoInscricoes";
+import CategoriasEtarias from "@/pages/CategoriasEtarias";
+import LimitesAtletas from "@/pages/LimitesAtletas";
+import VagasSede from "@/pages/VagasSede";
+import RegrasStaff from "@/pages/RegrasStaff";
+import RegrasDisciplinares from "@/pages/RegrasDisciplinares";
+import RegrasUniforme from "@/pages/RegrasUniforme";
+import TaxasAdministrativas from "@/pages/TaxasAdministrativas";
 import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -61,6 +68,13 @@ const App = () => (
             <Route path="/dashboard/validacao-inscricoes" element={<ProtectedRoute><ValidacaoInscricoes /></ProtectedRoute>} />
             <Route path="/admin/setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
             <Route path="/admin/structure" element={<ProtectedRoute><StructureManager /></ProtectedRoute>} />
+            <Route path="/admin/categorias-etarias" element={<ProtectedRoute><CategoriasEtarias /></ProtectedRoute>} />
+            <Route path="/admin/limites-atletas" element={<ProtectedRoute><LimitesAtletas /></ProtectedRoute>} />
+            <Route path="/admin/vagas-sede" element={<ProtectedRoute><VagasSede /></ProtectedRoute>} />
+            <Route path="/admin/regras-staff" element={<ProtectedRoute><RegrasStaff /></ProtectedRoute>} />
+            <Route path="/admin/regras-disciplinares" element={<ProtectedRoute><RegrasDisciplinares /></ProtectedRoute>} />
+            <Route path="/admin/regras-uniforme" element={<ProtectedRoute><RegrasUniforme /></ProtectedRoute>} />
+            <Route path="/admin/taxas-administrativas" element={<ProtectedRoute><TaxasAdministrativas /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
