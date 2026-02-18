@@ -55,11 +55,13 @@ export function JJ2026Import({ orgId, competitionId, competitionName }: JJ2026Im
         .eq("org_id", orgId);
       if (modsErr) throw modsErr;
 
-      const modMap = new Map(existingMods.map((m) => [m.name.toLowerCase(), m]));
+      const modMap = new Map(existingMods.map((m) => [m.name, m]));
+      // Also add lowercase keys for fuzzy matching
+      existingMods.forEach((m) => modMap.set(m.name.toLowerCase(), m));
 
-      // 2. Create/update modalities
+      // 2. Create/update modalities using upsert
       for (const mod of JJ2026_ALL_MODALITIES) {
-        const existing = modMap.get(mod.name.toLowerCase());
+        const existing = modMap.get(mod.name) || modMap.get(mod.name.toLowerCase());
         if (existing) {
           // Update type and is_team_sport if different
           if (existing.type !== mod.type || existing.is_team_sport !== mod.isTeamSport) {
@@ -74,28 +76,38 @@ export function JJ2026Import({ orgId, competitionId, competitionName }: JJ2026Im
             }
           }
         } else {
-          // Create new modality
-          const { error } = await supabase.from("modalities").insert({
-            name: mod.name,
-            type: mod.type,
-            is_team_sport: mod.isTeamSport,
-            gender: "misto",
-            gender_type: mod.feminino === null ? "male" : mod.masculino === null ? "female" : "mixed",
-            org_id: orgId,
-          });
-          if (error) {
-            res.errors.push(`Erro ao criar ${mod.name}: ${error.message}`);
+          // Try to find by name globally (unique constraint is not per-org)
+          const { data: globalMatch } = await supabase
+            .from("modalities")
+            .select("id")
+            .eq("name", mod.name)
+            .maybeSingle();
+
+          if (globalMatch) {
+            // Modality exists under another org — skip creation, just reference it
+            res.modalitiesUpdated++;
           } else {
-            res.modalitiesCreated++;
+            const { error } = await supabase.from("modalities").insert({
+              name: mod.name,
+              type: mod.type,
+              is_team_sport: mod.isTeamSport,
+              gender: "misto",
+              gender_type: mod.feminino === null ? "male" : mod.masculino === null ? "female" : "mixed",
+              org_id: orgId,
+            });
+            if (error) {
+              res.errors.push(`Erro ao criar ${mod.name}: ${error.message}`);
+            } else {
+              res.modalitiesCreated++;
+            }
           }
         }
       }
 
-      // 3. Re-fetch modalities after creation
+      // 3. Re-fetch all modalities (not filtered by org, since unique constraint is global)
       const { data: allMods } = await supabase
         .from("modalities")
-        .select("id, name")
-        .eq("org_id", orgId);
+        .select("id, name");
       const modIdMap = new Map((allMods || []).map((m) => [m.name.toLowerCase(), m.id]));
 
       // 4. Fetch existing categories
