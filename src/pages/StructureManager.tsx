@@ -14,6 +14,12 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+// COMPONENTES QUE ESTAVAM CAUSANDO O ERRO (ADICIONADOS):
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+// ... restante do seu código
+
 // ─── CONFIG EDITOR (Modal de Regras Otimizado) ───
 function RulesConfigEditor({ ruleId, categoryName, modalityName, initialConfig, onClose }: any) {
   const queryClient = useQueryClient();
