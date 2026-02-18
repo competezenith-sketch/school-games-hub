@@ -96,7 +96,12 @@ export function JJ2026Import({ orgId, competitionId, competitionName }: JJ2026Im
               org_id: orgId,
             });
             if (error) {
-              res.errors.push(`Erro ao criar ${mod.name}: ${error.message}`);
+              // Handle duplicate key gracefully — modality exists but RLS hid it
+              if (error.code === "23505" || error.message.includes("duplicate key")) {
+                res.modalitiesUpdated++;
+              } else {
+                res.errors.push(`Erro ao criar ${mod.name}: ${error.message}`);
+              }
             } else {
               res.modalitiesCreated++;
             }
