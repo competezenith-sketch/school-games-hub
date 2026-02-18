@@ -36,17 +36,28 @@ const Inscricoes = () => {
   });
 
   const { data: filteredRules = [] } = useQuery({
-    queryKey: ["rules-filtered", selectedStage?.id],
-    enabled: !!selectedStage && step === 1,
-    queryFn: async () => {
-      const isJerps = selectedStage.name.toLowerCase().includes("jerp") || selectedStage.stage_number === 99;
-      const { data } = await supabase.from("competition_rules").select("*, modalities(*), categories(*)").eq("competition_id", selectedCompetition);
-      return data?.filter((r: any) => {
-        const isPara = r.modalities.name.toLowerCase().includes("paralímpic") || r.modalities.name.toLowerCase().includes("bocha");
-        return isJerps ? isPara : !isPara;
-      }) || [];
-    }
-  });
+  queryKey: ["rules-step", selectedStage?.id],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from("competition_rules")
+      .select("*, modalities(*), categories(*)")
+      .eq("competition_id", selectedCompetition);
+    
+    // FILTRO PARA NÃO REPETIR O ÍCONE DA MODALIDADE
+    // Se a modalidade tem Mirim e Infantil, aqui no passo 1 só deve aparecer o esporte uma vez
+    const uniqueModalities = [];
+    const seenIds = new Set();
+
+    data?.forEach(rule => {
+      if (!seenIds.has(rule.modality_id)) {
+        seenIds.add(rule.modality_id);
+        uniqueModalities.push(rule);
+      }
+    });
+
+    return uniqueModalities;
+  }
+});
 
   const saveAction = useMutation({
     mutationFn: async () => {
