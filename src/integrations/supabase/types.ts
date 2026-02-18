@@ -768,6 +768,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          delegation_id: string | null
           full_name: string | null
           id: string
           org_id: string
@@ -777,6 +778,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          delegation_id?: string | null
           full_name?: string | null
           id?: string
           org_id: string
@@ -786,6 +788,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          delegation_id?: string | null
           full_name?: string | null
           id?: string
           org_id?: string
@@ -793,6 +796,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_delegation_id_fkey"
+            columns: ["delegation_id"]
+            isOneToOne: false
+            referencedRelation: "delegations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_org_id_fkey"
             columns: ["org_id"]
@@ -958,6 +968,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_delegation_id: { Args: { _user_id: string }; Returns: string }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -968,7 +979,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "gestor_escola"
       inscription_status:
         | "pendente"
         | "validado"
@@ -1109,7 +1120,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "gestor_escola"],
       inscription_status: [
         "pendente",
         "validado",
