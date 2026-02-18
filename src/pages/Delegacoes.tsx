@@ -163,25 +163,32 @@ const Delegacoes = () => {
   });
 
   // ─── Bulk Import ───
+  const parsedLines = importText
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .map((l) => {
+      // Support "Name; City" or "Name, City" or "Name\tCity" formats
+      const sep = l.includes(";") ? ";" : l.includes("\t") ? "\t" : ",";
+      const parts = l.split(sep).map((p) => p.trim());
+      return { name: parts[0], city: parts[1] || null };
+    });
+
   const importMutation = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("Organização não encontrada.");
-      const names = importText
-        .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0);
-      if (names.length === 0) throw new Error("Nenhum nome informado.");
+      if (parsedLines.length === 0) throw new Error("Nenhum nome informado.");
 
-      const rows = names.map((n) => ({
-        name: n,
-        city: importType === "municipio" ? n : null,
+      const rows = parsedLines.map((item) => ({
+        name: item.name,
+        city: item.city,
         type: importType,
         org_id: orgId,
       }));
 
       const { error } = await supabase.from("delegations").insert(rows);
       if (error) throw error;
-      return names.length;
+      return rows.length;
     },
     onSuccess: (count) => {
       toast.success(`${count} delegação(ões) importada(s)!`);
@@ -236,39 +243,42 @@ const Delegacoes = () => {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label>Nomes (um por linha)</Label>
+                    <Label>Escolas (uma por linha: Nome; Município)</Label>
                     <Button
                       type="button"
                       variant="link"
                       size="sm"
                       className="h-auto p-0 text-xs"
                       onClick={() => {
-                        setImportText(MUNICIPIOS_RORAIMA.join("\n"));
-                        setImportType("municipio");
+                        const example = MUNICIPIOS_RORAIMA.map(
+                          (m) => `Escola Estadual de ${m}; ${m}`
+                        ).join("\n");
+                        setImportText(example);
+                        setImportType("escola");
                       }}
                     >
-                      Preencher com municípios de Roraima
+                      Exemplo com municípios de RR
                     </Button>
                   </div>
                   <Textarea
                     rows={10}
-                    placeholder={"Escola Estadual João da Silva\nEscola Municipal Maria...\nColégio XYZ"}
+                    placeholder={"Escola Estadual João da Silva; Boa Vista\nEscola Municipal Maria; Caracaraí\nColégio XYZ; Pacaraima"}
                     value={importText}
                     onChange={(e) => setImportText(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    {importText.split("\n").filter((l) => l.trim()).length} nome(s) detectado(s)
+                    {parsedLines.length} escola(s) detectada(s) · Separe nome e município com <strong>;</strong> ou <strong>,</strong>
                   </p>
                 </div>
               </div>
               <DialogFooter>
                 <Button
                   className="w-full"
-                  disabled={!importText.trim() || importMutation.isPending}
+                  disabled={parsedLines.length === 0 || importMutation.isPending}
                   onClick={() => importMutation.mutate()}
                 >
                   {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-                  Importar {importText.split("\n").filter((l) => l.trim()).length} escola(s)
+                  Importar {parsedLines.length} escola(s)
                 </Button>
               </DialogFooter>
             </DialogContent>
