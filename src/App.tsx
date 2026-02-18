@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import Auth from "@/pages/Auth";
-import Dashboard from "@/pages/Dashboard";
+import SmartDashboard from "@/pages/SmartDashboard";
 import Regulamento from "@/pages/Regulamento";
 import Participantes from "@/pages/Participantes";
 import ResetPassword from "@/pages/ResetPassword";
@@ -28,6 +28,8 @@ import RegrasDisciplinares from "@/pages/RegrasDisciplinares";
 import RegrasUniforme from "@/pages/RegrasUniforme";
 import TaxasAdministrativas from "@/pages/TaxasAdministrativas";
 import GestoresEscolas from "@/pages/GestoresEscolas";
+import CadastroGestor from "@/pages/CadastroGestor";
+import AprovacaoGestores from "@/pages/AprovacaoGestores";
 import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -54,9 +56,10 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/cadastro-gestor" element={<CadastroGestor />} />
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><SmartDashboard /></ProtectedRoute>} />
             <Route path="/dashboard/regulamento" element={<ProtectedRoute><Regulamento /></ProtectedRoute>} />
             <Route path="/dashboard/participantes" element={<ProtectedRoute><Participantes /></ProtectedRoute>} />
             <Route path="/dashboard/match-sheet-print" element={<ProtectedRoute><MatchSheetPrint /></ProtectedRoute>} />
@@ -77,6 +80,7 @@ const App = () => (
             <Route path="/admin/regras-uniforme" element={<ProtectedRoute><RegrasUniforme /></ProtectedRoute>} />
             <Route path="/admin/taxas-administrativas" element={<ProtectedRoute><TaxasAdministrativas /></ProtectedRoute>} />
             <Route path="/admin/gestores" element={<ProtectedRoute><GestoresEscolas /></ProtectedRoute>} />
+            <Route path="/admin/aprovacao-gestores" element={<ProtectedRoute><AprovacaoGestores /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

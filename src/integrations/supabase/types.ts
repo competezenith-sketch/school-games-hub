@@ -411,6 +411,63 @@ export type Database = {
         }
         Relationships: []
       }
+      gestor_registrations: {
+        Row: {
+          created_at: string
+          delegation_id: string
+          email: string
+          full_name: string
+          id: string
+          org_id: string
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          delegation_id: string
+          email: string
+          full_name: string
+          id?: string
+          org_id: string
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          delegation_id?: string
+          email?: string
+          full_name?: string
+          id?: string
+          org_id?: string
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gestor_registrations_delegation_id_fkey"
+            columns: ["delegation_id"]
+            isOneToOne: false
+            referencedRelation: "delegations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gestor_registrations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inscriptions: {
         Row: {
           competition_rule_id: string
