@@ -81,7 +81,13 @@ const Delegacoes = () => {
       toast.success("Delegação removida!");
       queryClient.invalidateQueries({ queryKey: ["delegations"] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any) => {
+      if (err.message?.includes("foreign key constraint")) {
+        toast.error("Não é possível excluir esta delegação pois ela possui partidas ou participantes vinculados.");
+      } else {
+        toast.error(err.message);
+      }
+    },
   });
 
   return (
