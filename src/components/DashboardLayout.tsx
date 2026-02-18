@@ -64,6 +64,7 @@ const adminItems: NavItem[] = [
   { to: "/admin/setup", label: "Configurações Globais", icon: Cog },
   { to: "/admin/structure", label: "Estrutura do Evento", icon: LayoutGrid },
   { to: "/admin/gestores", label: "Gestores de Escola", icon: UserPlus },
+  { to: "/admin/aprovacao-gestores", label: "Aprovação Gestores", icon: UserCheck },
   { to: "/dashboard/regulamento", label: "Regulamento", icon: ScrollText },
   { to: "/admin/categorias-etarias", label: "Categorias Etárias", icon: Users2 },
   { to: "/admin/limites-atletas", label: "Limites de Atletas", icon: Target },
