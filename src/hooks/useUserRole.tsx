@@ -5,20 +5,25 @@ import { useAuth } from "./useAuth";
 export const useUserRole = () => {
   const { user } = useAuth();
 
-  const { data: isAdmin = false, isLoading } = useQuery({
-    queryKey: ["user-role", user?.id],
+  const { data, isLoading } = useQuery({
+    queryKey: ["user-roles", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user!.id)
-        .eq("role", "admin")
-        .maybeSingle();
+        .eq("user_id", user!.id);
       if (error) throw error;
-      return !!data;
+      return data?.map((r) => r.role) ?? [];
     },
   });
 
-  return { isAdmin, isLoading };
+  const roles = data ?? [];
+
+  return {
+    roles,
+    isAdmin: roles.includes("admin"),
+    isGestor: roles.includes("gestor_escola"),
+    isLoading,
+  };
 };

@@ -27,6 +27,7 @@ import RegrasStaff from "@/pages/RegrasStaff";
 import RegrasDisciplinares from "@/pages/RegrasDisciplinares";
 import RegrasUniforme from "@/pages/RegrasUniforme";
 import TaxasAdministrativas from "@/pages/TaxasAdministrativas";
+import GestoresEscolas from "@/pages/GestoresEscolas";
 import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -75,6 +76,7 @@ const App = () => (
             <Route path="/admin/regras-disciplinares" element={<ProtectedRoute><RegrasDisciplinares /></ProtectedRoute>} />
             <Route path="/admin/regras-uniforme" element={<ProtectedRoute><RegrasUniforme /></ProtectedRoute>} />
             <Route path="/admin/taxas-administrativas" element={<ProtectedRoute><TaxasAdministrativas /></ProtectedRoute>} />
+            <Route path="/admin/gestores" element={<ProtectedRoute><GestoresEscolas /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

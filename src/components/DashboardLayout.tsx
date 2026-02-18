@@ -24,6 +24,7 @@ import {
   Target,
   MapPinned,
   UserCheck,
+  UserPlus,
   ShieldAlert,
   Shirt,
   DollarSign,
@@ -44,6 +45,13 @@ const generalItems: NavItem[] = [
   { to: "/dashboard/periodos-inscricao", label: "Períodos Inscrição", icon: Trophy },
 ];
 
+// Items visible only for gestores (school managers)
+const gestorItems: NavItem[] = [
+  { to: "/dashboard", label: "Visão Geral", icon: BarChart3, end: true },
+  { to: "/dashboard/participantes", label: "Meus Atletas", icon: Users },
+  { to: "/dashboard/inscricoes", label: "Inscrições", icon: FileText },
+];
+
 const operationItems: NavItem[] = [
   { to: "/dashboard/etapas", label: "Etapas", icon: Mountain },
   { to: "/dashboard/resultados", label: "Resultados", icon: ClipboardList },
@@ -55,6 +63,7 @@ const operationItems: NavItem[] = [
 const adminItems: NavItem[] = [
   { to: "/admin/setup", label: "Configurações Globais", icon: Cog },
   { to: "/admin/structure", label: "Estrutura do Evento", icon: LayoutGrid },
+  { to: "/admin/gestores", label: "Gestores de Escola", icon: UserPlus },
   { to: "/dashboard/regulamento", label: "Regulamento", icon: ScrollText },
   { to: "/admin/categorias-etarias", label: "Categorias Etárias", icon: Users2 },
   { to: "/admin/limites-atletas", label: "Limites de Atletas", icon: Target },
@@ -104,7 +113,7 @@ function SidebarGroup({ label, items, onClick }: { label: string; items: NavItem
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, isGestor } = useUserRole();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -148,10 +157,16 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         </div>
 
         <nav className="flex-1 py-4 space-y-5 px-3 overflow-y-auto">
-          <SidebarGroup label="Geral" items={generalItems} onClick={closeSidebar} />
-          <SidebarGroup label="Operação" items={operationItems} onClick={closeSidebar} />
-          {isAdmin && (
-            <SidebarGroup label="Configuração" items={adminItems} onClick={closeSidebar} />
+          {isGestor && !isAdmin ? (
+            <SidebarGroup label="Minha Escola" items={gestorItems} onClick={closeSidebar} />
+          ) : (
+            <>
+              <SidebarGroup label="Geral" items={generalItems} onClick={closeSidebar} />
+              <SidebarGroup label="Operação" items={operationItems} onClick={closeSidebar} />
+              {isAdmin && (
+                <SidebarGroup label="Configuração" items={adminItems} onClick={closeSidebar} />
+              )}
+            </>
           )}
         </nav>
 
