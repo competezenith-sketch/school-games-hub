@@ -122,7 +122,7 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-// ─── Step 1: Team Selection ───
+// ─── Step 1: Team Selection (ATUALIZADO COM BUSCA) ───
 function StepTeamSelection({
   orgId,
   onSelect,
@@ -136,6 +136,7 @@ function StepTeamSelection({
   const [modalityId, setModalityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [delegationId, setDelegationId] = useState(gestorDelegationId || "");
+  const [open, setOpen] = useState(false); // <--- Estado para abrir/fechar a busca
 
   const { data: competitions = [] } = useQuery({
     queryKey: ["competitions-inscr", orgId],
@@ -205,15 +206,57 @@ function StepTeamSelection({
               <SelectContent>{competitions.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.year})</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          
+          {/* CAMPO DE DELEGAÇÃO COM BUSCA */}
           {!gestorDelegationId && (
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <Label>Delegação (Escola)</Label>
-              <Select value={delegationId} onValueChange={setDelegationId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{delegations.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between font-normal"
+                  >
+                    {delegationId
+                      ? delegations.find((d: any) => d.id === delegationId)?.name
+                      : "Buscar escola..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput placeholder="Digite o nome da escola..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma escola encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        {delegations.map((d: any) => (
+                          <CommandItem
+                            key={d.id}
+                            value={d.name} // Importante: busca pelo nome
+                            onSelect={() => {
+                              setDelegationId(d.id === delegationId ? "" : d.id);
+                              setOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                delegationId === d.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {d.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
+
           <div className="space-y-2">
             <Label>Modalidade</Label>
             <Select value={modalityId} onValueChange={(v) => { setModalityId(v); setCategoryId(""); }} disabled={!competitionId}>
