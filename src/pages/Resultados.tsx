@@ -7,10 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import { StatusBadge, type StatusType } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Loader2, Upload, Trophy, Calendar, MapPin, Clock } from "lucide-react";
+import { Loader2, Upload, Trophy, Calendar as CalendarIcon, MapPin, Clock, Plus, Trash2 } from "lucide-react";
 
 const statusOptions = [
   { value: "agendado", label: "Agendado" },
@@ -29,6 +33,8 @@ const statusToBadge: Record<string, StatusType> = {
 const Resultados = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Score modal state
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
   const [scoreA, setScoreA] = useState("");
   const [scoreB, setScoreB] = useState("");
@@ -37,6 +43,46 @@ const Resultados = () => {
   const [sheetFile, setSheetFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Create modal state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newDelegationA, setNewDelegationA] = useState("");
+  const [newDelegationB, setNewDelegationB] = useState("");
+  const [newCompetitionId, setNewCompetitionId] = useState("");
+  const [newMatchDate, setNewMatchDate] = useState<Date>();
+  const [newMatchTime, setNewMatchTime] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [newMatchNumber, setNewMatchNumber] = useState("");
+
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("org_id").eq("user_id", user!.id).single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const orgId = profile?.org_id ?? "";
+
+  const { data: delegations = [] } = useQuery({
+    queryKey: ["delegations"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("delegations").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: competitions = [] } = useQuery({
+    queryKey: ["competitions"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("competitions").select("id, name, year").order("year", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: matches = [], isLoading } = useQuery({
     queryKey: ["matches"],
@@ -48,6 +94,55 @@ const Resultados = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Create match mutation
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!orgId) throw new Error("Organização não encontrada.");
+      if (!newCompetitionId) throw new Error("Selecione um campeonato.");
+      if (!newDelegationA || !newDelegationB) throw new Error("Selecione as duas delegações.");
+      if (newDelegationA === newDelegationB) throw new Error("As delegações devem ser diferentes.");
+
+      const { error } = await supabase.from("matches").insert({
+        org_id: orgId,
+        competition_id: newCompetitionId,
+        delegation_a_id: newDelegationA,
+        delegation_b_id: newDelegationB,
+        match_date: newMatchDate ? format(newMatchDate, "yyyy-MM-dd") : null,
+        match_time: newMatchTime || null,
+        location: newLocation || null,
+        match_number: newMatchNumber ? parseInt(newMatchNumber) : null,
+        status: "agendado",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Jogo criado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+      setCreateOpen(false);
+      setNewDelegationA("");
+      setNewDelegationB("");
+      setNewCompetitionId("");
+      setNewMatchDate(undefined);
+      setNewMatchTime("");
+      setNewLocation("");
+      setNewMatchNumber("");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // Delete match mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("matches").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Jogo removido!");
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+    },
+    onError: (err: any) => toast.error(err.message),
   });
 
   const openScoreModal = (match: any) => {
@@ -65,7 +160,7 @@ const Resultados = () => {
     if (isNaN(a) || isNaN(b)) return null;
     if (a > b) return selectedMatch?.delegation_a_id;
     if (b > a) return selectedMatch?.delegation_b_id;
-    return null; // draw
+    return null;
   };
 
   const effectiveWinner = winnerOverride || suggestedWinner();
@@ -73,10 +168,8 @@ const Resultados = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedMatch) return;
-
       let scannedUrl = selectedMatch.scanned_sheet_url;
 
-      // Upload scanned sheet if provided
       if (sheetFile) {
         setUploading(true);
         const ext = sheetFile.name.split(".").pop();
@@ -128,7 +221,7 @@ const Resultados = () => {
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {match.match_date && (
               <>
-                <Calendar className="h-3 w-3" />
+                <CalendarIcon className="h-3 w-3" />
                 <span>{new Date(match.match_date + "T12:00:00").toLocaleDateString("pt-BR")}</span>
               </>
             )}
@@ -139,10 +232,24 @@ const Resultados = () => {
               </>
             )}
           </div>
-          <StatusBadge status={statusToBadge[match.status] || "pendente"} />
+          <div className="flex items-center gap-1">
+            <StatusBadge status={statusToBadge[match.status] || "pendente"} />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm("Tem certeza que deseja excluir este jogo?")) {
+                  deleteMutation.mutate(match.id);
+                }
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            </Button>
+          </div>
         </div>
 
-        {/* Confrontation */}
         <div className="flex items-center justify-center gap-3 py-3">
           <div className="text-right flex-1">
             <p className="font-display text-sm tracking-wide truncate">
@@ -187,11 +294,98 @@ const Resultados = () => {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="font-display text-2xl tracking-wider">Resultados</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          Lance e gerencie os placares dos jogos
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-2xl tracking-wider">Resultados</h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Lance e gerencie os placares dos jogos
+          </p>
+        </div>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button><Plus className="h-4 w-4 mr-2" /> Novo Jogo</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-display tracking-wider">Novo Jogo</DialogTitle>
+              <DialogDescription>Agende um novo confronto entre delegações</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Campeonato</Label>
+                <Select value={newCompetitionId} onValueChange={setNewCompetitionId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {competitions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name} ({c.year})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Delegação A</Label>
+                  <Select value={newDelegationA} onValueChange={setNewDelegationA}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {delegations.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Delegação B</Label>
+                  <Select value={newDelegationB} onValueChange={setNewDelegationB}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {delegations.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Data</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !newMatchDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newMatchDate ? format(newMatchDate, "dd/MM/yyyy") : "Selecionar"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={newMatchDate} onSelect={setNewMatchDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Horário</Label>
+                  <Input type="time" value={newMatchTime} onChange={(e) => setNewMatchTime(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Local</Label>
+                  <Input placeholder="Ex: Ginásio A" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nº do Jogo</Label>
+                  <Input type="number" placeholder="Ex: 1" value={newMatchNumber} onChange={(e) => setNewMatchNumber(e.target.value)} />
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                disabled={!newCompetitionId || !newDelegationA || !newDelegationB || createMutation.isPending}
+                onClick={() => createMutation.mutate()}
+              >
+                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Jogo"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {isLoading ? (
@@ -203,7 +397,7 @@ const Resultados = () => {
           <Trophy className="h-10 w-10 text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground font-medium">Nenhum jogo cadastrado</p>
           <p className="text-xs text-muted-foreground/60 mt-1">
-            Cadastre jogos para começar a lançar resultados
+            Clique em "Novo Jogo" para agendar um confronto
           </p>
         </Card>
       ) : (
@@ -266,7 +460,6 @@ const Resultados = () => {
                 </div>
               </div>
 
-              {/* Suggested winner */}
               {suggestedWinner() && (
                 <div className="text-center text-xs text-success font-medium">
                   Vencedor sugerido:{" "}
@@ -276,7 +469,6 @@ const Resultados = () => {
                 </div>
               )}
 
-              {/* Status */}
               <div className="space-y-2">
                 <Label>Status do Jogo</Label>
                 <Select value={status} onValueChange={setStatus}>
@@ -289,7 +481,6 @@ const Resultados = () => {
                 </Select>
               </div>
 
-              {/* Winner override */}
               <div className="space-y-2">
                 <Label>Vencedor (ajuste manual)</Label>
                 <Select value={winnerOverride} onValueChange={setWinnerOverride}>
@@ -305,7 +496,6 @@ const Resultados = () => {
                 </Select>
               </div>
 
-              {/* Scanned sheet upload */}
               <div className="space-y-2">
                 <Label>Súmula Escaneada (obrigatório para finalizar)</Label>
                 <div
@@ -329,7 +519,6 @@ const Resultados = () => {
                 )}
               </div>
 
-              {/* Save */}
               <Button
                 className="w-full"
                 size="lg"
