@@ -206,7 +206,9 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="font-display text-lg tracking-wider">Painel Administrativo</h1>
+          <h1 className="font-display text-lg tracking-wider">
+            {isGestor && !isAdmin ? "Minha Escola" : "Painel Administrativo"}
+          </h1>
         </header>
         <main className="flex-1 p-4 lg:p-8">
           <div className="mx-auto max-w-7xl">

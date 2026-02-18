@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ const roleLabels: Record<string, string> = {
 
 const Participantes = () => {
   const { user } = useAuth();
+  const { isGestor, isAdmin } = useUserRole();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 
@@ -38,13 +40,39 @@ const Participantes = () => {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [delegationId, setDelegationId] = useState<string>("");
 
-  const { data: participants = [], isLoading } = useQuery({
-    queryKey: ["participants"],
+  // For gestores: auto-load their delegation
+  const { data: myProfile } = useQuery({
+    queryKey: ["my-profile-participants", user?.id],
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
+        .from("profiles")
+        .select("org_id, delegation_id")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const isGestorOnly = isGestor && !isAdmin;
+  const gestorDelegationId = myProfile?.delegation_id;
+  const gestorOrgId = myProfile?.org_id;
+
+  const { data: participants = [], isLoading } = useQuery({
+    queryKey: ["participants", isGestorOnly, gestorDelegationId],
+    queryFn: async () => {
+      let query = supabase
         .from("participants")
         .select("*, delegations(name)")
         .order("created_at", { ascending: false });
+      
+      // Gestores only see their own delegation
+      if (isGestorOnly && gestorDelegationId) {
+        query = query.eq("delegation_id", gestorDelegationId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -61,14 +89,20 @@ const Participantes = () => {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      // Get user org_id from profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("user_id", user!.id)
-        .single();
+      const orgId = isGestorOnly ? gestorOrgId : undefined;
+      const delId = isGestorOnly ? gestorDelegationId : delegationId || null;
 
-      if (!profile) throw new Error("Perfil não encontrado. Configure sua organização.");
+      // Get user org_id from profile if not gestor
+      let finalOrgId = orgId;
+      if (!finalOrgId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("org_id")
+          .eq("user_id", user!.id)
+          .single();
+        if (!profile) throw new Error("Perfil não encontrado. Configure sua organização.");
+        finalOrgId = profile.org_id;
+      }
 
       const { error } = await supabase.from("participants").insert({
         full_name: fullName,
@@ -77,8 +111,8 @@ const Participantes = () => {
         sex: sex ? (sex as any) : null,
         birth_date: birthDate || null,
         photo_url: photoUrl,
-        org_id: profile.org_id,
-        delegation_id: delegationId || null,
+        org_id: finalOrgId!,
+        delegation_id: delId,
       });
       if (error) throw error;
     },
@@ -110,9 +144,11 @@ const Participantes = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-2xl tracking-wider">Participantes</h2>
+          <h2 className="font-display text-2xl tracking-wider">
+            {isGestorOnly ? "Meus Atletas e Staff" : "Participantes"}
+          </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Gerencie atletas, técnicos e demais participantes
+            {isGestorOnly ? "Cadastre e gerencie atletas e comissão técnica da sua escola" : "Gerencie atletas, técnicos e demais participantes"}
           </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
@@ -174,17 +210,19 @@ const Participantes = () => {
                   <Label htmlFor="birthDate">Data de nascimento</Label>
                   <Input id="birthDate" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Delegação</Label>
-                  <Select value={delegationId} onValueChange={setDelegationId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      {delegations.map((d: any) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!isGestorOnly && (
+                  <div className="space-y-2">
+                    <Label>Delegação</Label>
+                    <Select value={delegationId} onValueChange={setDelegationId}>
+                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        {delegations.map((d: any) => (
+                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="sm:col-span-2 flex gap-3 pt-2">
                   <Button type="submit" disabled={createMutation.isPending}>
                     {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}

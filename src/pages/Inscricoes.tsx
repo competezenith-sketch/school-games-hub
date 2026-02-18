@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -107,14 +108,16 @@ function StepIndicator({ current }: { current: number }) {
 function StepTeamSelection({
   orgId,
   onSelect,
+  gestorDelegationId,
 }: {
   orgId: string;
   onSelect: (rule: CompetitionRule, delegationId: string) => void;
+  gestorDelegationId?: string | null;
 }) {
   const [competitionId, setCompetitionId] = useState("");
   const [modalityId, setModalityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [delegationId, setDelegationId] = useState("");
+  const [delegationId, setDelegationId] = useState(gestorDelegationId || "");
 
   const { data: competitions = [] } = useQuery({
     queryKey: ["competitions-inscr", orgId],
@@ -184,13 +187,15 @@ function StepTeamSelection({
               <SelectContent>{competitions.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.year})</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Delegação (Escola)</Label>
-            <Select value={delegationId} onValueChange={setDelegationId}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>{delegations.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
+          {!gestorDelegationId && (
+            <div className="space-y-2">
+              <Label>Delegação (Escola)</Label>
+              <Select value={delegationId} onValueChange={setDelegationId}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>{delegations.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Modalidade</Label>
             <Select value={modalityId} onValueChange={(v) => { setModalityId(v); setCategoryId(""); }} disabled={!competitionId}>
@@ -498,6 +503,7 @@ function StepReview({
 // ─── Main Page ───
 const Inscricoes = () => {
   const { user } = useAuth();
+  const { isGestor, isAdmin } = useUserRole();
   const [step, setStep] = useState(0);
   const [selectedRule, setSelectedRule] = useState<CompetitionRule | null>(null);
   const [delegationId, setDelegationId] = useState("");
@@ -507,13 +513,15 @@ const Inscricoes = () => {
     queryKey: ["my-profile-inscr", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("org_id").eq("user_id", user!.id).single();
+      const { data, error } = await supabase.from("profiles").select("org_id, delegation_id").eq("user_id", user!.id).single();
       if (error) throw error;
       return data;
     },
   });
 
   const orgId = profile?.org_id ?? "";
+  const isGestorOnly = isGestor && !isAdmin;
+  const gestorDelegationId = profile?.delegation_id;
 
   const handleTeamSelected = (rule: CompetitionRule, delId: string) => {
     setSelectedRule(rule);
@@ -548,7 +556,7 @@ const Inscricoes = () => {
 
       <StepIndicator current={step} />
 
-      {step === 0 && <StepTeamSelection orgId={orgId} onSelect={handleTeamSelected} />}
+      {step === 0 && <StepTeamSelection orgId={orgId} onSelect={handleTeamSelected} gestorDelegationId={isGestorOnly ? gestorDelegationId : null} />}
 
       {step === 1 && selectedRule && (
         <StepAthleteSelection
