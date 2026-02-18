@@ -7,21 +7,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Search, UserPlus, UserMinus, Users, AlertCircle, Info, Calendar } from "lucide-react";
+import { Search, UserPlus, UserMinus, Info, AlertCircle, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, onBack, onNext }: any) => {
   const [searchTerm, setSearchTerm] = useState("");
   const MATRICULA_LIMITE = new Date("2026-03-06");
 
-  // 1. Busca atletas com suas inscrições atuais para validar limites
   const { data: allAthletes = [], isLoading } = useQuery({
-    queryKey: ["org-athletes-eligibility", orgId],
+    queryKey: ["org-athletes-eligibility", orgId, rule.id],
     queryFn: async () => {
+      // Busca atletas e as modalidades onde já estão inscritos nesta competição
       const { data, error } = await supabase
         .from("profiles")
-        .select(`*, registrations(modality_id, modalities(type))`)
+        .select(`*, registrations(modality_id, modalities(type, name))`)
         .eq("org_id", orgId)
         .eq("role", "athlete");
       if (error) throw error;
@@ -32,100 +31,72 @@ export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, o
   const eligibleAthletes = useMemo(() => {
     if (!rule || !allAthletes.length) return [];
     
-    const minYear = rule.categories.year_min;
-    const maxYear = rule.categories.year_max;
-    const typeAtual = rule.modalities.type;
+    const isJerps = rule.modalities.name.toLowerCase().includes("paralímpic") || rule.modalities.name.toLowerCase().includes("bocha");
+    const currentType = rule.modalities.type;
 
     return allAthletes.filter((athlete: any) => {
-      // 1. Já selecionado nesta lista atual?
       if (enrolled.some(e => e.id === athlete.id)) return false;
 
-      // 2. Filtro de Busca
-      if (searchTerm && !athlete.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-
-      // 3. Regra de Matrícula (Art. Regulamento: Até 06/03/2026)
+      // 1. REGRA: Matrícula até 06/03/2026
       if (!athlete.enrollment_date || new Date(athlete.enrollment_date) > MATRICULA_LIMITE) return false;
 
-      // 4. Regra de Idade
+      // 2. REGRA: Idade (Ano de Nascimento)
       const birthYear = new Date(athlete.birth_date).getFullYear();
-      if (birthYear < minYear || birthYear > maxYear) return false;
+      if (birthYear < rule.categories.year_min || birthYear > rule.categories.year_max) return false;
 
-      // 5. Regra de Gênero
-      const genderRest = rule.rules_config.gender_restriction || 'X';
-      if (genderRest !== 'X' && athlete.gender !== genderRest) return false;
+      // 3. REGRA: Limite de Modalidades (JERs: 1 Coletiva + 1 Individual | JERPs: 1 Total)
+      const regs = athlete.registrations || [];
+      if (isJerps) {
+        if (regs.length >= 1) return false; // Paralímpico: apenas 1 modalidade
+      } else {
+        const hasColetiva = regs.some((r: any) => r.modalities.type === 'coletivo');
+        const hasIndividual = regs.some((r: any) => r.modalities.type === 'individual');
+        if (currentType === 'coletivo' && hasColetiva) return false;
+        if (currentType === 'individual' && hasIndividual) return false;
+      }
 
-      // 6. Limite de Participação (1 Individual + 1 Coletiva)
-      const inscricoes = athlete.registrations || [];
-      const jaTemColetiva = inscricoes.some((r: any) => r.modalities.type === 'coletivo');
-      const jaTemIndividual = inscricoes.some((r: any) => r.modalities.type === 'individual');
-
-      if (typeAtual === 'coletivo' && jaTemColetiva) return false;
-      if (typeAtual === 'individual' && jaTemIndividual) return false;
-
+      if (searchTerm && !athlete.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
       return true;
     });
   }, [allAthletes, rule, enrolled, searchTerm]);
 
-  const maxAthletes = rule.rules_config.max_athletes || 99;
-  const minAthletes = rule.rules_config.min_athletes || 0;
-
   return (
     <div className="space-y-4 animate-in fade-in">
-      <Alert className="bg-blue-50 border-blue-200 py-2">
+      <Alert className="bg-blue-50 border-blue-200">
         <Info className="h-4 w-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-xs">
-          Exibindo alunos matriculados até <b>06/03/2026</b> com vaga disponível para modalidade <b>{rule.modalities.type}</b>.
+          Alunos elegíveis: Matriculados até 06/03 dentro da faixa {rule.categories.year_min}-{rule.categories.year_max}.
         </AlertDescription>
       </Alert>
 
       <div className="grid lg:grid-cols-2 gap-4 h-[450px]">
-        {/* Disponíveis */}
-        <Card className="flex flex-col h-full">
-          <CardHeader className="p-3 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-bold">Alunos Elegíveis</span>
-              <Badge variant="secondary">{eligibleAthletes.length}</Badge>
-            </div>
-            <Input 
-              placeholder="Buscar por nome..." 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)}
-              className="h-8"
-            />
+        <Card className="flex flex-col h-full bg-muted/10">
+          <CardHeader className="p-3">
+            <Input placeholder="Buscar aluno..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="h-9" />
           </CardHeader>
           <CardContent className="flex-1 overflow-hidden p-2">
-            <ScrollArea className="h-full pr-2">
-              {eligibleAthletes.map((athlete: any) => (
-                <div key={athlete.id} className="flex items-center justify-between p-2 mb-1 border rounded-md hover:bg-muted/50 group">
+            <ScrollArea className="h-full">
+              {eligibleAthletes.map((a: any) => (
+                <div key={a.id} className="flex items-center justify-between p-2 mb-1 bg-background border rounded-md group">
                   <div className="text-sm">
-                    <p className="font-medium">{athlete.name}</p>
-                    <p className="text-[10px] text-muted-foreground">Nascimento: {new Date(athlete.birth_date).getFullYear()}</p>
+                    <p className="font-medium leading-none">{a.name}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Nasc: {new Date(a.birth_date).getFullYear()}</p>
                   </div>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => onAdd(athlete)} disabled={enrolled.length >= maxAthletes}>
-                    <UserPlus className="h-4 w-4 text-primary" />
-                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => onAdd(a)}><UserPlus className="h-4 w-4" /></Button>
                 </div>
               ))}
             </ScrollArea>
           </CardContent>
         </Card>
 
-        {/* Selecionados */}
         <Card className="flex flex-col h-full border-primary/20">
-          <CardHeader className="p-3 bg-primary/5 border-b">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-bold text-primary">Equipe Selecionada</span>
-              <span className="text-xs font-mono">{enrolled.length} / {maxAthletes}</span>
-            </div>
-          </CardHeader>
+          <CardHeader className="p-3 bg-primary/5 border-b"><CardTitle className="text-sm">Selecionados ({enrolled.length})</CardTitle></CardHeader>
           <CardContent className="flex-1 overflow-hidden p-2">
             <ScrollArea className="h-full">
-              {enrolled.map((athlete: any) => (
-                <div key={athlete.id} className="flex items-center justify-between p-2 mb-1 bg-primary/5 border border-primary/10 rounded-md">
-                  <span className="text-sm font-medium">{athlete.name}</span>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => onRemove(athlete.id)}>
-                    <UserMinus className="h-4 w-4" />
-                  </Button>
+              {enrolled.map((a: any) => (
+                <div key={a.id} className="flex items-center justify-between p-2 bg-primary/5 border border-primary/10 rounded-md mb-1">
+                  <span className="text-sm font-medium">{a.name}</span>
+                  <Button size="sm" variant="ghost" onClick={() => onRemove(a.id)}><UserMinus className="h-4 w-4 text-destructive" /></Button>
                 </div>
               ))}
             </ScrollArea>
@@ -133,15 +104,13 @@ export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, o
         </Card>
       </div>
 
-      <div className="flex justify-between items-center pt-4 border-t">
+      <div className="flex justify-between items-center border-t pt-4">
         <Button variant="ghost" onClick={onBack}>Voltar</Button>
-        <div className="flex items-center gap-4">
-          {enrolled.length < minAthletes && (
-            <span className="text-xs text-destructive flex items-center gap-1 italic">
-              <AlertCircle className="h-3 w-3" /> Mínimo de {minAthletes} atletas
-            </span>
-          )}
-          <Button onClick={onNext} disabled={enrolled.length < minAthletes}>Finalizar Equipe</Button>
+        <div className="flex items-center gap-3">
+           {enrolled.length < (rule.rules_config.min_athletes || 0) && (
+             <span className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Mínimo: {rule.rules_config.min_athletes}</span>
+           )}
+           <Button onClick={onNext} disabled={enrolled.length < (rule.rules_config.min_athletes || 0)}>Finalizar Equipe</Button>
         </div>
       </div>
     </div>
