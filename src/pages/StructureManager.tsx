@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Plus, Dumbbell, Tag, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Dumbbell, Tag, ChevronRight, Settings2, Save, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MODALITY_PRESETS = ["Futsal", "Vôlei", "Xadrez", "Atletismo", "Basquete", "Handebol", "Natação", "Tênis de Mesa"];
@@ -23,6 +24,167 @@ const GENDER_OPTIONS = [
   { value: "F", label: "Feminino" },
   { value: "misto", label: "Misto" },
 ];
+
+// ─── Rules Config Editor ───
+interface RulesConfig {
+  min_athletes?: number;
+  max_athletes?: number;
+  birth_year_min?: number;
+  birth_year_max?: number;
+  max_modalities_per_athlete?: number;
+  max_substitutions?: number;
+  max_coaches?: number;
+  max_staff?: number;
+  notes?: string | null;
+  [key: string]: unknown;
+}
+
+function RulesConfigEditor({
+  ruleId,
+  categoryName,
+  modalityName,
+  initialConfig,
+  onClose,
+}: {
+  ruleId: string;
+  categoryName: string;
+  modalityName: string;
+  initialConfig: RulesConfig;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [config, setConfig] = useState<RulesConfig>({ ...initialConfig });
+
+  const updateField = (field: string, value: string) => {
+    const num = value === "" ? undefined : parseInt(value);
+    setConfig((prev) => ({ ...prev, [field]: isNaN(num as number) ? undefined : num }));
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      // Merge with any existing unknown fields
+      const merged = { ...initialConfig, ...config };
+      // Remove undefined values
+      const cleaned = Object.fromEntries(
+        Object.entries(merged).filter(([, v]) => v !== undefined)
+      );
+      const { error } = await supabase
+        .from("competition_rules")
+        .update({ rules_config: cleaned as any })
+        .eq("id", ruleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Regras atualizadas com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["linked-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["rule-config"] });
+      onClose();
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const fields: { key: string; label: string; placeholder: string; group: string }[] = [
+    { key: "min_athletes", label: "Mín. Atletas", placeholder: "Ex: 5", group: "atletas" },
+    { key: "max_athletes", label: "Máx. Atletas", placeholder: "Ex: 12", group: "atletas" },
+    { key: "birth_year_min", label: "Ano Nasc. Mín", placeholder: "Ex: 2010", group: "idade" },
+    { key: "birth_year_max", label: "Ano Nasc. Máx", placeholder: "Ex: 2014", group: "idade" },
+    { key: "max_modalities_per_athlete", label: "Máx. Modalidades/Atleta", placeholder: "Ex: 2", group: "atletas" },
+    { key: "max_substitutions", label: "Máx. Substituições", placeholder: "Ex: 5", group: "atletas" },
+    { key: "max_coaches", label: "Máx. Técnicos", placeholder: "Ex: 2", group: "oficiais" },
+    { key: "max_staff", label: "Máx. Staff Total", placeholder: "Ex: 5", group: "oficiais" },
+  ];
+
+  return (
+    <Card className="border-primary/30">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base font-display tracking-wider flex items-center gap-2">
+              <Settings2 className="h-4 w-4" /> Editor de Regras
+            </CardTitle>
+            <CardDescription className="mt-1">
+              {modalityName} — {categoryName}
+            </CardDescription>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Atletas */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Atletas</p>
+          <div className="grid grid-cols-2 gap-3">
+            {fields.filter((f) => f.group === "atletas").map((f) => (
+              <div key={f.key} className="space-y-1.5">
+                <Label className="text-xs">{f.label}</Label>
+                <Input
+                  type="number"
+                  placeholder={f.placeholder}
+                  value={config[f.key] != null ? String(config[f.key]) : ""}
+                  onChange={(e) => updateField(f.key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Faixa Etária */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Faixa Etária</p>
+          <div className="grid grid-cols-2 gap-3">
+            {fields.filter((f) => f.group === "idade").map((f) => (
+              <div key={f.key} className="space-y-1.5">
+                <Label className="text-xs">{f.label}</Label>
+                <Input
+                  type="number"
+                  placeholder={f.placeholder}
+                  value={config[f.key] != null ? String(config[f.key]) : ""}
+                  onChange={(e) => updateField(f.key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Oficiais */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Oficiais / Comissão</p>
+          <div className="grid grid-cols-2 gap-3">
+            {fields.filter((f) => f.group === "oficiais").map((f) => (
+              <div key={f.key} className="space-y-1.5">
+                <Label className="text-xs">{f.label}</Label>
+                <Input
+                  type="number"
+                  placeholder={f.placeholder}
+                  value={config[f.key] != null ? String(config[f.key]) : ""}
+                  onChange={(e) => updateField(f.key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            className="flex-1"
+            disabled={saveMutation.isPending}
+            onClick={() => saveMutation.mutate()}
+          >
+            {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Salvar Regras
+          </Button>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ─── Modalities Section ───
 function ModalitiesSection({
@@ -188,10 +350,12 @@ function CategoriesSection({
   orgId,
   competitionId,
   modalityId,
+  onEditRule,
 }: {
   orgId: string;
   competitionId: string;
   modalityId: string;
+  onEditRule: (ruleId: string, categoryName: string, modalityName: string, config: RulesConfig) => void;
 }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -199,25 +363,28 @@ function CategoriesSection({
   const [yearMin, setYearMin] = useState("");
   const [yearMax, setYearMax] = useState("");
 
-  // Get categories linked to this modality+competition via competition_rules
   const { data: linkedCategories = [], isLoading } = useQuery({
     queryKey: ["linked-categories", competitionId, modalityId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("competition_rules")
-        .select("id, category:categories(id, name, year_min, year_max)")
+        .select("id, rules_config, category:categories(id, name, year_min, year_max), modality:modalities(id, name)")
         .eq("competition_id", competitionId)
         .eq("modality_id", modalityId)
         .eq("org_id", orgId);
       if (error) throw error;
-      return data.map((r: any) => ({ ...r.category, rule_id: r.id }));
+      return data.map((r: any) => ({
+        ...r.category,
+        rule_id: r.id,
+        rules_config: r.rules_config,
+        modality_name: r.modality?.name ?? "",
+      }));
     },
     enabled: !!competitionId && !!modalityId,
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      // 1. Create category
       const { data: cat, error: catErr } = await supabase
         .from("categories")
         .insert({
@@ -231,7 +398,6 @@ function CategoriesSection({
         .single();
       if (catErr) throw catErr;
 
-      // 2. Create competition_rule linking it
       const { error: ruleErr } = await supabase
         .from("competition_rules")
         .insert({
@@ -312,6 +478,7 @@ function CategoriesSection({
                 <TableHead>Nome</TableHead>
                 <TableHead>Ano Mín</TableHead>
                 <TableHead>Ano Máx</TableHead>
+                <TableHead className="w-20 text-right">Regras</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -320,6 +487,15 @@ function CategoriesSection({
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell>{c.year_min || "—"}</TableCell>
                   <TableCell>{c.year_max || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEditRule(c.rule_id, c.name, c.modality_name, c.rules_config || {})}
+                    >
+                      <Settings2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -335,8 +511,13 @@ const StructureManager = () => {
   const { user } = useAuth();
   const [competitionId, setCompetitionId] = useState("");
   const [selectedModalityId, setSelectedModalityId] = useState<string | null>(null);
+  const [editingRule, setEditingRule] = useState<{
+    ruleId: string;
+    categoryName: string;
+    modalityName: string;
+    config: RulesConfig;
+  } | null>(null);
 
-  // Get user org_id
   const { data: profile } = useQuery({
     queryKey: ["my-profile", user?.id],
     enabled: !!user?.id,
@@ -372,11 +553,10 @@ const StructureManager = () => {
       <div>
         <h2 className="font-display text-2xl tracking-wider">Estrutura da Competição</h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Gerencie modalidades e categorias por competição
+          Gerencie modalidades, categorias e regras esportivas por competição
         </p>
       </div>
 
-      {/* Competition selector */}
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-2 max-w-sm">
@@ -386,6 +566,7 @@ const StructureManager = () => {
               onValueChange={(v) => {
                 setCompetitionId(v);
                 setSelectedModalityId(null);
+                setEditingRule(null);
               }}
             >
               <SelectTrigger><SelectValue placeholder="Selecione a competição..." /></SelectTrigger>
@@ -402,28 +583,46 @@ const StructureManager = () => {
       </Card>
 
       {competitionId && orgId && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ModalitiesSection
-            orgId={orgId}
-            selectedId={selectedModalityId}
-            onSelect={setSelectedModalityId}
-          />
-
-          {selectedModalityId ? (
-            <CategoriesSection
+        <>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <ModalitiesSection
               orgId={orgId}
-              competitionId={competitionId}
-              modalityId={selectedModalityId}
+              selectedId={selectedModalityId}
+              onSelect={(id) => {
+                setSelectedModalityId(id);
+                setEditingRule(null);
+              }}
             />
-          ) : (
-            <Card className="flex flex-col items-center justify-center py-16 text-center">
-              <Tag className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground text-sm">
-                Selecione uma modalidade para ver suas categorias
-              </p>
-            </Card>
+
+            {selectedModalityId ? (
+              <CategoriesSection
+                orgId={orgId}
+                competitionId={competitionId}
+                modalityId={selectedModalityId}
+                onEditRule={(ruleId, categoryName, modalityName, config) =>
+                  setEditingRule({ ruleId, categoryName, modalityName, config })
+                }
+              />
+            ) : (
+              <Card className="flex flex-col items-center justify-center py-16 text-center">
+                <Tag className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                <p className="text-muted-foreground text-sm">
+                  Selecione uma modalidade para ver suas categorias
+                </p>
+              </Card>
+            )}
+          </div>
+
+          {editingRule && (
+            <RulesConfigEditor
+              ruleId={editingRule.ruleId}
+              categoryName={editingRule.categoryName}
+              modalityName={editingRule.modalityName}
+              initialConfig={editingRule.config}
+              onClose={() => setEditingRule(null)}
+            />
           )}
-        </div>
+        </>
       )}
     </div>
   );
