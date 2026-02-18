@@ -9,24 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-
-// Componentes do Shadcn para o Combobox
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
-// Ícones (Importação unificada)
 import {
   Loader2,
   ChevronRight,
@@ -38,8 +20,7 @@ import {
   AlertTriangle,
   Send,
   Info,
-  Check,
-  ChevronsUpDown,
+  Search,
 } from "lucide-react";
 
 // ─── Types ───
@@ -100,7 +81,6 @@ function isAgeValid(
   const year = birthYearFromDate(birthDate);
   if (!year) return { valid: false, reason: "Data de nascimento não informada" };
 
-  // Use rules_config birth_year_min/max if available, otherwise fall back to category
   const yearMin = rulesConfig?.birth_year_min ?? category.year_min;
   const yearMax = rulesConfig?.birth_year_max ?? category.year_max;
 
@@ -131,7 +111,11 @@ function StepIndicator({ current }: { current: number }) {
           >
             {i < current ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
           </div>
-          <span className={`text-sm hidden sm:inline ${i === current ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+          <span
+            className={`text-sm hidden sm:inline ${
+              i === current ? "font-semibold text-foreground" : "text-muted-foreground"
+            }`}
+          >
             {label}
           </span>
           {i < steps.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground/40" />}
@@ -141,7 +125,7 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-// ─── Step 1: Team Selection (ATUALIZADO COM BUSCA) ───
+// ─── Step 1: Team Selection ───
 function StepTeamSelection({
   orgId,
   onSelect,
@@ -155,13 +139,17 @@ function StepTeamSelection({
   const [modalityId, setModalityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [delegationId, setDelegationId] = useState(gestorDelegationId || "");
-  const [open, setOpen] = useState(false); // Estado para abrir/fechar a busca
+  const [schoolSearch, setSchoolSearch] = useState("");
 
   const { data: competitions = [] } = useQuery({
     queryKey: ["competitions-inscr", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("competitions").select("id, name, year").eq("org_id", orgId).order("year", { ascending: false });
+      const { data, error } = await supabase
+        .from("competitions")
+        .select("id, name, year")
+        .eq("org_id", orgId)
+        .order("year", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -173,7 +161,9 @@ function StepTeamSelection({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("competition_rules")
-        .select("id, competition_id, modality_id, category_id, rules_config, category:categories(id, name, year_min, year_max), modality:modalities(id, name)")
+        .select(
+          "id, competition_id, modality_id, category_id, rules_config, category:categories(id, name, year_min, year_max), modality:modalities(id, name)"
+        )
         .eq("competition_id", competitionId)
         .eq("org_id", orgId);
       if (error) throw error;
@@ -185,24 +175,43 @@ function StepTeamSelection({
     queryKey: ["delegations-inscr", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("delegations").select("id, name").eq("org_id", orgId).order("name");
+      const { data, error } = await supabase
+        .from("delegations")
+        .select("id, name")
+        .eq("org_id", orgId)
+        .order("name");
       if (error) throw error;
       return data;
     },
   });
 
+  // Filter delegations by school search
+  const filteredDelegations = useMemo(() => {
+    if (!schoolSearch.trim()) return delegations;
+    return (delegations as any[]).filter((d) =>
+      d.name.toLowerCase().includes(schoolSearch.toLowerCase())
+    );
+  }, [delegations, schoolSearch]);
+
   const modalities = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>();
-    rules.forEach((r: any) => { if (r.modality) map.set(r.modality.id, r.modality); });
+    rules.forEach((r: any) => {
+      if (r.modality) map.set(r.modality.id, r.modality);
+    });
     return Array.from(map.values());
   }, [rules]);
 
   const categories = useMemo(() => {
-    return rules.filter((r: any) => r.modality_id === modalityId).map((r: any) => r.category).filter(Boolean);
+    return rules
+      .filter((r: any) => r.modality_id === modalityId)
+      .map((r: any) => r.category)
+      .filter(Boolean);
   }, [rules, modalityId]);
 
   const selectedRule = useMemo(() => {
-    return rules.find((r: any) => r.modality_id === modalityId && r.category_id === categoryId) as CompetitionRule | undefined;
+    return rules.find(
+      (r: any) => r.modality_id === modalityId && r.category_id === categoryId
+    ) as CompetitionRule | undefined;
   }, [rules, modalityId, categoryId]);
 
   const rulesConfig = selectedRule?.rules_config as RulesConfig | undefined;
@@ -218,76 +227,130 @@ function StepTeamSelection({
           <CardDescription>Escolha a competição, modalidade, categoria e delegação.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          {/* Competição */}
           <div className="space-y-2">
             <Label>Competição</Label>
-            <Select value={competitionId} onValueChange={(v) => { setCompetitionId(v); setModalityId(""); setCategoryId(""); }}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>{competitions.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.year})</SelectItem>)}</SelectContent>
+            <Select
+              value={competitionId}
+              onValueChange={(v) => {
+                setCompetitionId(v);
+                setModalityId("");
+                setCategoryId("");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione..." />
+              </SelectTrigger>
+              <SelectContent>
+                {(competitions as any[]).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.year})
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
-          
-          {/* CAMPO DE DELEGAÇÃO COM BUSCA */}
+
+          {/* Delegação com busca */}
           {!gestorDelegationId && (
-            <div className="space-y-2 flex flex-col">
+            <div className="space-y-2">
               <Label>Delegação (Escola)</Label>
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-full justify-between font-normal"
-                  >
-                    {delegationId
-                      ? delegations.find((d: any) => d.id === delegationId)?.name
-                      : "Buscar escola..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                    <CommandInput placeholder="Digite o nome da escola..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhuma escola encontrada.</CommandEmpty>
-                      <CommandGroup>
-                        {delegations.map((d: any) => (
-                          <CommandItem
-                            key={d.id}
-                            value={d.name} // Importante: busca pelo nome
-                            onSelect={() => {
-                              setDelegationId(d.id === delegationId ? "" : d.id);
-                              setOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                delegationId === d.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {d.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              {/* Campo de busca */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Buscar escola pelo nome..."
+                  value={schoolSearch}
+                  onChange={(e) => {
+                    setSchoolSearch(e.target.value);
+                    // Reset selection if current value doesn't match filter
+                    if (delegationId) {
+                      const stillVisible = filteredDelegations.some(
+                        (d: any) => d.id === delegationId
+                      );
+                      if (!stillVisible) setDelegationId("");
+                    }
+                  }}
+                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
+                />
+              </div>
+              {/* Select filtrado */}
+              <Select value={delegationId} onValueChange={setDelegationId}>
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      schoolSearch && filteredDelegations.length === 0
+                        ? "Nenhuma escola encontrada"
+                        : "Selecione..."
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredDelegations.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-center text-muted-foreground">
+                      Nenhuma escola encontrada para "{schoolSearch}"
+                    </div>
+                  ) : (
+                    (filteredDelegations as any[]).map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {/* Contador de resultados */}
+              {schoolSearch && (
+                <p className="text-xs text-muted-foreground">
+                  {filteredDelegations.length} escola(s) encontrada(s)
+                </p>
+              )}
             </div>
           )}
 
+          {/* Modalidade */}
           <div className="space-y-2">
             <Label>Modalidade</Label>
-            <Select value={modalityId} onValueChange={(v) => { setModalityId(v); setCategoryId(""); }} disabled={!competitionId}>
-              <SelectTrigger><SelectValue placeholder={competitionId ? "Selecione..." : "Escolha a competição primeiro"} /></SelectTrigger>
-              <SelectContent>{modalities.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
+            <Select
+              value={modalityId}
+              onValueChange={(v) => {
+                setModalityId(v);
+                setCategoryId("");
+              }}
+              disabled={!competitionId}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={competitionId ? "Selecione..." : "Escolha a competição primeiro"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {modalities.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
+
+          {/* Categoria */}
           <div className="space-y-2">
             <Label>Categoria</Label>
             <Select value={categoryId} onValueChange={setCategoryId} disabled={!modalityId}>
-              <SelectTrigger><SelectValue placeholder={modalityId ? "Selecione..." : "Escolha a modalidade primeiro"} /></SelectTrigger>
-              <SelectContent>{categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={modalityId ? "Selecione..." : "Escolha a modalidade primeiro"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {(categories as any[]).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </CardContent>
@@ -305,7 +368,9 @@ function StepTeamSelection({
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {category.year_min && category.year_max && (
-                    <Badge variant="secondary">Nascimento: {category.year_min}–{category.year_max}</Badge>
+                    <Badge variant="secondary">
+                      Nascimento: {category.year_min}–{category.year_max}
+                    </Badge>
                   )}
                   {rulesConfig?.min_athletes != null && (
                     <Badge variant="secondary">Mín. Atletas: {rulesConfig.min_athletes}</Badge>
@@ -349,6 +414,7 @@ function StepAthleteSelection({
   onBack: () => void;
   onNext: () => void;
 }) {
+  const [athleteSearch, setAthleteSearch] = useState("");
   const category = rule.category;
   const rulesConfig = rule.rules_config as RulesConfig;
   const maxAthletes = rulesConfig?.max_athletes ?? 99;
@@ -370,7 +436,6 @@ function StepAthleteSelection({
     },
   });
 
-  // Fetch existing inscriptions for this competition to check modality limits per athlete
   const { data: existingInscriptions = [] } = useQuery({
     queryKey: ["athlete-modality-count", rule.competition_id, delegationId],
     queryFn: async () => {
@@ -384,7 +449,6 @@ function StepAthleteSelection({
     },
   });
 
-  // Build map: participant_id -> Set of modality_ids they are already in
   const athleteModalityMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
     existingInscriptions.forEach((ins: any) => {
@@ -397,7 +461,13 @@ function StepAthleteSelection({
     return map;
   }, [existingInscriptions]);
 
-  const available = participants.filter((p) => !enrolledIds.has(p.id));
+  const available = useMemo(() => {
+    const notEnrolled = participants.filter((p) => !enrolledIds.has(p.id));
+    if (!athleteSearch.trim()) return notEnrolled;
+    return notEnrolled.filter((p) =>
+      p.full_name.toLowerCase().includes(athleteSearch.toLowerCase())
+    );
+  }, [participants, enrolledIds, athleteSearch]);
 
   const handleAdd = (p: Participant) => {
     if (enrolled.length >= maxAthletes) {
@@ -409,12 +479,13 @@ function StepAthleteSelection({
       toast.error(`Atleta "${p.full_name}" bloqueado: ${check.reason}`);
       return;
     }
-    // Check max modalities per athlete (Art 33.II)
     const currentModalities = athleteModalityMap.get(p.id) ?? new Set();
     const willBeInModalities = new Set(currentModalities);
     willBeInModalities.add(rule.modality_id);
     if (willBeInModalities.size > maxModalities) {
-      toast.error(`"${p.full_name}" já está inscrito em ${currentModalities.size} modalidade(s). Máximo permitido: ${maxModalities}.`);
+      toast.error(
+        `"${p.full_name}" já está inscrito em ${currentModalities.size} modalidade(s). Máximo permitido: ${maxModalities}.`
+      );
       return;
     }
     onAdd(p);
@@ -427,7 +498,10 @@ function StepAthleteSelection({
         <CardContent className="pt-5 flex items-center gap-3 text-sm">
           <Info className="h-5 w-5 text-primary shrink-0" />
           <span>
-            <strong>{rule.modality?.name} — {category.name}</strong> · {enrolled.length}/{maxAthletes} atletas
+            <strong>
+              {rule.modality?.name} — {category.name}
+            </strong>{" "}
+            · {enrolled.length}/{maxAthletes} atletas
           </span>
         </CardContent>
       </Card>
@@ -442,31 +516,68 @@ function StepAthleteSelection({
             <CardDescription>{available.length} atleta(s) desta delegação</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Busca de atleta */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar atleta pelo nome..."
+                value={athleteSearch}
+                onChange={(e) => setAthleteSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
+              />
+            </div>
+
             {isLoading ? (
-              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
             ) : available.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum atleta disponível</p>
+              <p className="text-sm text-muted-foreground text-center py-6">
+                {athleteSearch ? `Nenhum atleta encontrado para "${athleteSearch}"` : "Nenhum atleta disponível"}
+              </p>
             ) : (
               <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
                 {available.map((p) => {
                   const ageCheck = isAgeValid(p.birth_date, category, rulesConfig);
                   const year = birthYearFromDate(p.birth_date);
                   const modalityCount = athleteModalityMap.get(p.id)?.size ?? 0;
-                  const atModalityLimit = modalityCount >= maxModalities && !athleteModalityMap.get(p.id)?.has(rule.modality_id);
+                  const atModalityLimit =
+                    modalityCount >= maxModalities &&
+                    !athleteModalityMap.get(p.id)?.has(rule.modality_id);
                   return (
                     <div key={p.id} className="flex items-center gap-3 rounded-lg border p-2.5">
                       <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                        {p.photo_url ? <img src={p.photo_url} className="h-full w-full object-cover" /> : <Users className="h-4 w-4 text-muted-foreground" />}
+                        {p.photo_url ? (
+                          <img src={p.photo_url} className="h-full w-full object-cover" />
+                        ) : (
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{p.full_name}</p>
                         <p className="text-[11px] text-muted-foreground">
                           {year ? `Nasc. ${year}` : "Sem data"}
-                          {!ageCheck.valid && <span className="text-destructive ml-1">⚠ Fora da faixa</span>}
-                          {modalityCount > 0 && <span className={`ml-1 ${atModalityLimit ? "text-destructive" : "text-amber-600"}`}>· {modalityCount}/{maxModalities} mod.</span>}
+                          {!ageCheck.valid && (
+                            <span className="text-destructive ml-1">⚠ Fora da faixa</span>
+                          )}
+                          {modalityCount > 0 && (
+                            <span
+                              className={`ml-1 ${
+                                atModalityLimit ? "text-destructive" : "text-amber-600"
+                              }`}
+                            >
+                              · {modalityCount}/{maxModalities} mod.
+                            </span>
+                          )}
                         </p>
                       </div>
-                      <Button size="sm" variant={ageCheck.valid && !atModalityLimit ? "default" : "outline"} onClick={() => handleAdd(p)} disabled={atModalityLimit}>
+                      <Button
+                        size="sm"
+                        variant={ageCheck.valid && !atModalityLimit ? "default" : "outline"}
+                        onClick={() => handleAdd(p)}
+                        disabled={atModalityLimit}
+                      >
                         <UserPlus className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -483,21 +594,35 @@ function StepAthleteSelection({
             <CardTitle className="text-base font-display tracking-wider flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" /> Equipa Atual
             </CardTitle>
-            <CardDescription>{enrolled.length} de {maxAthletes} atletas</CardDescription>
+            <CardDescription>
+              {enrolled.length} de {maxAthletes} atletas
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {enrolled.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum atleta adicionado ainda</p>
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Nenhum atleta adicionado ainda
+              </p>
             ) : (
               <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
                 {enrolled.map((p, i) => (
-                  <div key={p.id} className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5"
+                  >
                     <span className="text-xs font-bold text-primary w-5 text-center">{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{p.full_name}</p>
-                      <p className="text-[11px] text-muted-foreground">Nasc. {birthYearFromDate(p.birth_date) ?? "—"}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Nasc. {birthYearFromDate(p.birth_date) ?? "—"}
+                      </p>
                     </div>
-                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onRemove(p.id)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => onRemove(p.id)}
+                    >
                       <UserMinus className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -509,7 +634,9 @@ function StepAthleteSelection({
       </div>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}><ChevronLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+        <Button variant="outline" onClick={onBack}>
+          <ChevronLeft className="mr-2 h-4 w-4" /> Voltar
+        </Button>
         <Button onClick={onNext} disabled={enrolled.length === 0}>
           Próximo <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
@@ -540,17 +667,18 @@ function StepReview({
   const maxAthletes = rulesConfig?.max_athletes ?? 99;
   const isBelowMin = enrolled.length < minAthletes;
 
-  // Fetch delegation staff rules
   const { data: staffRules = [] } = useQuery({
     queryKey: ["delegation-staff-rules-validation"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("delegation_staff_rules").select("*").order("role_name");
+      const { data, error } = await supabase
+        .from("delegation_staff_rules")
+        .select("*")
+        .order("role_name");
       if (error) throw error;
       return data;
     },
   });
 
-  // Fetch all participants in this delegation (staff)
   const { data: delegationParticipants = [] } = useQuery({
     queryKey: ["delegation-staff-count", delegationId],
     enabled: !!delegationId,
@@ -565,33 +693,43 @@ function StepReview({
     },
   });
 
-  // Map participant roles to staff rule role_names
   const staffWarnings = useMemo(() => {
     const warnings: { role: string; message: string; level: "error" | "warn" }[] = [];
     const roleCountMap = new Map<string, number>();
-    delegationParticipants.forEach((p: any) => {
+    (delegationParticipants as any[]).forEach((p) => {
       const r = p.role as string;
       roleCountMap.set(r, (roleCountMap.get(r) ?? 0) + 1);
     });
 
-    staffRules.forEach((sr: any) => {
+    (staffRules as any[]).forEach((sr) => {
       const roleName = sr.role_name?.toLowerCase();
-      // Map rule role_name to participant_role enum
       const mappedRole =
-        roleName === "técnico" || roleName === "tecnico" ? "tecnico" :
-        roleName === "dirigente" ? "dirigente" :
-        roleName === "motorista" ? "motorista" :
-        roleName === "árbitro" || roleName === "arbitro" ? "arbitro" :
-        null;
+        roleName === "técnico" || roleName === "tecnico"
+          ? "tecnico"
+          : roleName === "dirigente"
+          ? "dirigente"
+          : roleName === "motorista"
+          ? "motorista"
+          : roleName === "árbitro" || roleName === "arbitro"
+          ? "arbitro"
+          : null;
 
       if (!mappedRole) return;
       const count = roleCountMap.get(mappedRole) ?? 0;
 
       if (sr.is_required && count < (sr.min_count ?? 1)) {
-        warnings.push({ role: sr.role_name, message: `${sr.role_name}: mínimo ${sr.min_count ?? 1}, tem ${count}`, level: "error" });
+        warnings.push({
+          role: sr.role_name,
+          message: `${sr.role_name}: mínimo ${sr.min_count ?? 1}, tem ${count}`,
+          level: "error",
+        });
       }
       if (sr.max_count != null && count > sr.max_count) {
-        warnings.push({ role: sr.role_name, message: `${sr.role_name}: máximo ${sr.max_count}, tem ${count}`, level: "error" });
+        warnings.push({
+          role: sr.role_name,
+          message: `${sr.role_name}: máximo ${sr.max_count}, tem ${count}`,
+          level: "error",
+        });
       }
     });
     return warnings;
@@ -599,7 +737,6 @@ function StepReview({
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      // Delete any existing draft inscriptions for this rule + delegation
       await supabase
         .from("inscriptions")
         .delete()
@@ -607,7 +744,6 @@ function StepReview({
         .eq("delegation_id", delegationId)
         .in("status", ["rascunho" as any, "pendente" as any]);
 
-      // Insert all as 'pendente' (submitted for validation)
       const rows = enrolled.map((p) => ({
         participant_id: p.id,
         competition_rule_id: rule.id,
@@ -642,12 +778,18 @@ function StepReview({
               <div key={p.id} className="flex items-center gap-3 rounded-lg border p-2.5">
                 <span className="text-xs font-bold text-primary w-5 text-center">{i + 1}</span>
                 <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                  {p.photo_url ? <img src={p.photo_url} className="h-full w-full object-cover" /> : <Users className="h-3.5 w-3.5 text-muted-foreground" />}
+                  {p.photo_url ? (
+                    <img src={p.photo_url} className="h-full w-full object-cover" />
+                  ) : (
+                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{p.full_name}</p>
                 </div>
-                <span className="text-xs text-muted-foreground">Nasc. {birthYearFromDate(p.birth_date) ?? "—"}</span>
+                <span className="text-xs text-muted-foreground">
+                  Nasc. {birthYearFromDate(p.birth_date) ?? "—"}
+                </span>
               </div>
             ))}
           </div>
@@ -658,7 +800,9 @@ function StepReview({
         <Card className="border-destructive/30 bg-destructive/5">
           <CardContent className="pt-5 flex items-center gap-3 text-sm text-destructive">
             <AlertTriangle className="h-5 w-5 shrink-0" />
-            <span>Mínimo de <strong>{minAthletes}</strong> atletas necessário. Você tem {enrolled.length}.</span>
+            <span>
+              Mínimo de <strong>{minAthletes}</strong> atletas necessário. Você tem {enrolled.length}.
+            </span>
           </CardContent>
         </Card>
       )}
@@ -671,7 +815,10 @@ function StepReview({
               Composição da Delegação
             </div>
             {staffWarnings.map((w, i) => (
-              <p key={i} className={`text-xs ${w.level === "error" ? "text-destructive" : "text-amber-600"}`}>
+              <p
+                key={i}
+                className={`text-xs ${w.level === "error" ? "text-destructive" : "text-amber-600"}`}
+              >
                 ⚠ {w.message}
               </p>
             ))}
@@ -680,13 +827,19 @@ function StepReview({
       )}
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}><ChevronLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+        <Button variant="outline" onClick={onBack}>
+          <ChevronLeft className="mr-2 h-4 w-4" /> Voltar
+        </Button>
         <Button
           disabled={isBelowMin || submitMutation.isPending}
           onClick={() => submitMutation.mutate()}
           size="lg"
         >
-          {submitMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+          {submitMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 h-4 w-4" />
+          )}
           Finalizar Inscrição
         </Button>
       </div>
@@ -707,7 +860,11 @@ const Inscricoes = () => {
     queryKey: ["my-profile-inscr", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("org_id, delegation_id").eq("user_id", user!.id).single();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("org_id, delegation_id")
+        .eq("user_id", user!.id)
+        .single();
       if (error) throw error;
       return data;
     },
@@ -750,7 +907,13 @@ const Inscricoes = () => {
 
       <StepIndicator current={step} />
 
-      {step === 0 && <StepTeamSelection orgId={orgId} onSelect={handleTeamSelected} gestorDelegationId={isGestorOnly ? gestorDelegationId : null} />}
+      {step === 0 && (
+        <StepTeamSelection
+          orgId={orgId}
+          onSelect={handleTeamSelected}
+          gestorDelegationId={isGestorOnly ? gestorDelegationId : null}
+        />
+      )}
 
       {step === 1 && selectedRule && (
         <StepAthleteSelection
