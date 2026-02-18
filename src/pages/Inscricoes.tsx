@@ -289,6 +289,7 @@ function StepAthleteSelection({
   const category = rule.category;
   const rulesConfig = rule.rules_config as RulesConfig;
   const maxAthletes = rulesConfig?.max_athletes ?? 99;
+  const maxModalities = rulesConfig?.max_modalities_per_athlete ?? 2;
   const enrolledIds = new Set(enrolled.map((e) => e.id));
 
   const { data: participants = [], isLoading } = useQuery({
@@ -306,6 +307,33 @@ function StepAthleteSelection({
     },
   });
 
+  // Fetch existing inscriptions for this competition to check modality limits per athlete
+  const { data: existingInscriptions = [] } = useQuery({
+    queryKey: ["athlete-modality-count", rule.competition_id, delegationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inscriptions")
+        .select("participant_id, competition_rule_id, competition_rule:competition_rules(modality_id)")
+        .eq("delegation_id", delegationId)
+        .in("status", ["pendente", "validado", "enviado"] as any);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  // Build map: participant_id -> Set of modality_ids they are already in
+  const athleteModalityMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    existingInscriptions.forEach((ins: any) => {
+      const pid = ins.participant_id;
+      const mid = ins.competition_rule?.modality_id;
+      if (!pid || !mid) return;
+      if (!map.has(pid)) map.set(pid, new Set());
+      map.get(pid)!.add(mid);
+    });
+    return map;
+  }, [existingInscriptions]);
+
   const available = participants.filter((p) => !enrolledIds.has(p.id));
 
   const handleAdd = (p: Participant) => {
@@ -316,6 +344,14 @@ function StepAthleteSelection({
     const check = isAgeValid(p.birth_date, category, rulesConfig);
     if (!check.valid) {
       toast.error(`Atleta "${p.full_name}" bloqueado: ${check.reason}`);
+      return;
+    }
+    // Check max modalities per athlete (Art 33.II)
+    const currentModalities = athleteModalityMap.get(p.id) ?? new Set();
+    const willBeInModalities = new Set(currentModalities);
+    willBeInModalities.add(rule.modality_id);
+    if (willBeInModalities.size > maxModalities) {
+      toast.error(`"${p.full_name}" já está inscrito em ${currentModalities.size} modalidade(s). Máximo permitido: ${maxModalities}.`);
       return;
     }
     onAdd(p);
@@ -352,6 +388,8 @@ function StepAthleteSelection({
                 {available.map((p) => {
                   const ageCheck = isAgeValid(p.birth_date, category, rulesConfig);
                   const year = birthYearFromDate(p.birth_date);
+                  const modalityCount = athleteModalityMap.get(p.id)?.size ?? 0;
+                  const atModalityLimit = modalityCount >= maxModalities && !athleteModalityMap.get(p.id)?.has(rule.modality_id);
                   return (
                     <div key={p.id} className="flex items-center gap-3 rounded-lg border p-2.5">
                       <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
@@ -360,10 +398,12 @@ function StepAthleteSelection({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{p.full_name}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {year ? `Nasc. ${year}` : "Sem data"} {!ageCheck.valid && <span className="text-destructive ml-1">⚠ Fora da faixa</span>}
+                          {year ? `Nasc. ${year}` : "Sem data"}
+                          {!ageCheck.valid && <span className="text-destructive ml-1">⚠ Fora da faixa</span>}
+                          {modalityCount > 0 && <span className={`ml-1 ${atModalityLimit ? "text-destructive" : "text-amber-600"}`}>· {modalityCount}/{maxModalities} mod.</span>}
                         </p>
                       </div>
-                      <Button size="sm" variant={ageCheck.valid ? "default" : "outline"} onClick={() => handleAdd(p)}>
+                      <Button size="sm" variant={ageCheck.valid && !atModalityLimit ? "default" : "outline"} onClick={() => handleAdd(p)} disabled={atModalityLimit}>
                         <UserPlus className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -437,6 +477,63 @@ function StepReview({
   const maxAthletes = rulesConfig?.max_athletes ?? 99;
   const isBelowMin = enrolled.length < minAthletes;
 
+  // Fetch delegation staff rules
+  const { data: staffRules = [] } = useQuery({
+    queryKey: ["delegation-staff-rules-validation"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("delegation_staff_rules").select("*").order("role_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch all participants in this delegation (staff)
+  const { data: delegationParticipants = [] } = useQuery({
+    queryKey: ["delegation-staff-count", delegationId],
+    enabled: !!delegationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("participants")
+        .select("id, role")
+        .eq("delegation_id", delegationId)
+        .neq("role", "atleta");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Map participant roles to staff rule role_names
+  const staffWarnings = useMemo(() => {
+    const warnings: { role: string; message: string; level: "error" | "warn" }[] = [];
+    const roleCountMap = new Map<string, number>();
+    delegationParticipants.forEach((p: any) => {
+      const r = p.role as string;
+      roleCountMap.set(r, (roleCountMap.get(r) ?? 0) + 1);
+    });
+
+    staffRules.forEach((sr: any) => {
+      const roleName = sr.role_name?.toLowerCase();
+      // Map rule role_name to participant_role enum
+      const mappedRole =
+        roleName === "técnico" || roleName === "tecnico" ? "tecnico" :
+        roleName === "dirigente" ? "dirigente" :
+        roleName === "motorista" ? "motorista" :
+        roleName === "árbitro" || roleName === "arbitro" ? "arbitro" :
+        null;
+
+      if (!mappedRole) return;
+      const count = roleCountMap.get(mappedRole) ?? 0;
+
+      if (sr.is_required && count < (sr.min_count ?? 1)) {
+        warnings.push({ role: sr.role_name, message: `${sr.role_name}: mínimo ${sr.min_count ?? 1}, tem ${count}`, level: "error" });
+      }
+      if (sr.max_count != null && count > sr.max_count) {
+        warnings.push({ role: sr.role_name, message: `${sr.role_name}: máximo ${sr.max_count}, tem ${count}`, level: "error" });
+      }
+    });
+    return warnings;
+  }, [staffRules, delegationParticipants]);
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       // Delete any existing draft inscriptions for this rule + delegation
@@ -499,6 +596,22 @@ function StepReview({
           <CardContent className="pt-5 flex items-center gap-3 text-sm text-destructive">
             <AlertTriangle className="h-5 w-5 shrink-0" />
             <span>Mínimo de <strong>{minAthletes}</strong> atletas necessário. Você tem {enrolled.length}.</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {staffWarnings.length > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="pt-5 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-amber-700">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Composição da Delegação
+            </div>
+            {staffWarnings.map((w, i) => (
+              <p key={i} className={`text-xs ${w.level === "error" ? "text-destructive" : "text-amber-600"}`}>
+                ⚠ {w.message}
+              </p>
+            ))}
           </CardContent>
         </Card>
       )}
