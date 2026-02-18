@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,29 +21,46 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { JJ2026Import } from "@/components/JJ2026Import";
 
 interface RulesConfig {
   birth_date_min: string;
   birth_date_max: string;
+  birth_year_min: number;
+  birth_year_max: number;
   min_athletes: number;
   max_athletes: number;
+  max_athletes_m: number | null;
+  max_athletes_f: number | null;
   max_staff: number;
+  max_coaches: number;
   requires_rg: boolean;
   requires_medical_cert: boolean;
   allow_transgender: boolean;
   scoring_system: string;
+  max_modalities_per_athlete: number;
+  max_substitutions: number;
+  notes: string | null;
 }
 
 const defaultRules: RulesConfig = {
   birth_date_min: "",
   birth_date_max: "",
+  birth_year_min: 2009,
+  birth_year_max: 2011,
   min_athletes: 5,
   max_athletes: 15,
+  max_athletes_m: null,
+  max_athletes_f: null,
   max_staff: 3,
+  max_coaches: 1,
   requires_rg: true,
   requires_medical_cert: false,
   allow_transgender: true,
   scoring_system: "pontos_corridos",
+  max_modalities_per_athlete: 2,
+  max_substitutions: 3,
+  notes: null,
 };
 
 interface ComboItem {
@@ -52,10 +70,9 @@ interface ComboItem {
 
 const Regulamento = () => {
   const { user } = useAuth();
-  const [competitions, setCompetitions] = useState<ComboItem[]>([]);
+  const [competitions, setCompetitions] = useState<(ComboItem & { year?: number })[]>([]);
   const [modalities, setModalities] = useState<ComboItem[]>([]);
   const [categories, setCategories] = useState<ComboItem[]>([]);
-  const [competitionRules, setCompetitionRules] = useState<{ id: string; competition_id: string; modality_id: string; category_id: string }[]>([]);
 
   const [selectedCompetition, setSelectedCompetition] = useState("");
   const [selectedModality, setSelectedModality] = useState("");
@@ -65,20 +82,38 @@ const Regulamento = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Get user org_id
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile-reg", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("org_id")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const orgId = profile?.org_id ?? "";
+
   // Load reference data
   useEffect(() => {
+    if (!orgId) return;
     const load = async () => {
       const [compRes, modRes, catRes] = await Promise.all([
-        supabase.from("competitions").select("id, name"),
-        supabase.from("modalities").select("id, name"),
-        supabase.from("categories").select("id, name"),
+        supabase.from("competitions").select("id, name, year").eq("org_id", orgId).order("year", { ascending: false }),
+        supabase.from("modalities").select("id, name").eq("org_id", orgId).order("name"),
+        supabase.from("categories").select("id, name").eq("org_id", orgId).order("name"),
       ]);
-      setCompetitions((compRes.data as ComboItem[]) || []);
+      setCompetitions((compRes.data as any[]) || []);
       setModalities((modRes.data as ComboItem[]) || []);
       setCategories((catRes.data as ComboItem[]) || []);
     };
     load();
-  }, []);
+  }, [orgId]);
 
   // Load existing rule when selection changes
   useEffect(() => {
@@ -90,7 +125,7 @@ const Regulamento = () => {
 
     const loadRule = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("competition_rules")
         .select("id, rules_config")
         .eq("competition_id", selectedCompetition)
@@ -119,18 +154,6 @@ const Regulamento = () => {
 
     setSaving(true);
     try {
-      // Get user org_id
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("user_id", user!.id)
-        .single();
-
-      if (!profile) {
-        toast.error("Perfil não encontrado. Configure sua organização primeiro.");
-        return;
-      }
-
       if (ruleId) {
         const { error } = await supabase
           .from("competition_rules")
@@ -141,7 +164,7 @@ const Regulamento = () => {
         const { error } = await supabase
           .from("competition_rules")
           .insert([{
-            org_id: profile.org_id,
+            org_id: orgId,
             competition_id: selectedCompetition,
             modality_id: selectedModality,
             category_id: selectedCategory,
@@ -162,6 +185,7 @@ const Regulamento = () => {
   };
 
   const formReady = selectedCompetition && selectedModality && selectedCategory;
+  const selectedCompObj = competitions.find((c) => c.id === selectedCompetition);
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -172,6 +196,15 @@ const Regulamento = () => {
         </p>
       </div>
 
+      {/* JJ 2026 Import */}
+      {orgId && selectedCompetition && selectedCompObj && (
+        <JJ2026Import
+          orgId={orgId}
+          competitionId={selectedCompetition}
+          competitionName={selectedCompObj.name}
+        />
+      )}
+
       {/* Selectors */}
       <Card>
         <CardHeader>
@@ -181,7 +214,7 @@ const Regulamento = () => {
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label>Competição</Label>
-            <Select value={selectedCompetition} onValueChange={setSelectedCompetition}>
+            <Select value={selectedCompetition} onValueChange={(v) => { setSelectedCompetition(v); setSelectedModality(""); setSelectedCategory(""); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
@@ -194,7 +227,7 @@ const Regulamento = () => {
           </div>
           <div className="space-y-2">
             <Label>Modalidade</Label>
-            <Select value={selectedModality} onValueChange={setSelectedModality}>
+            <Select value={selectedModality} onValueChange={(v) => { setSelectedModality(v); setSelectedCategory(""); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
@@ -237,7 +270,35 @@ const Regulamento = () => {
               </div>
             ) : (
               <>
-                {/* Date range */}
+                {/* Birth year range */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Ano Nasc. Mínimo</Label>
+                    <Input
+                      type="number"
+                      min={2000}
+                      max={2020}
+                      value={rules.birth_year_min || ""}
+                      onChange={(e) => updateRule("birth_year_min", parseInt(e.target.value) || 0)}
+                      placeholder="Ex: 2009"
+                    />
+                    <p className="text-xs text-muted-foreground">Atletas mais velhos (ano menor)</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Ano Nasc. Máximo</Label>
+                    <Input
+                      type="number"
+                      min={2000}
+                      max={2020}
+                      value={rules.birth_year_max || ""}
+                      onChange={(e) => updateRule("birth_year_max", parseInt(e.target.value) || 0)}
+                      placeholder="Ex: 2011"
+                    />
+                    <p className="text-xs text-muted-foreground">Atletas mais novos (ano maior)</p>
+                  </div>
+                </div>
+
+                {/* Date range (legacy) */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <DateField
                     label="Data Nasc. Mínima"
@@ -251,13 +312,13 @@ const Regulamento = () => {
                   />
                 </div>
 
-                {/* Numeric inputs */}
-                <div className="grid gap-4 sm:grid-cols-3">
+                {/* Athlete limits */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-2">
                     <Label>Mín. Atletas</Label>
                     <Input
                       type="number"
-                      min={1}
+                      min={0}
                       max={100}
                       value={rules.min_athletes}
                       onChange={(e) => updateRule("min_athletes", parseInt(e.target.value) || 0)}
@@ -274,7 +335,33 @@ const Regulamento = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Máx. Comissão</Label>
+                    <Label>Máx. Atletas (M)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={rules.max_athletes_m ?? ""}
+                      onChange={(e) => updateRule("max_athletes_m", e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="Sem limite"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Máx. Atletas (F)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={rules.max_athletes_f ?? ""}
+                      onChange={(e) => updateRule("max_athletes_f", e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="Sem limite"
+                    />
+                  </div>
+                </div>
+
+                {/* Staff limits */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Máx. Comissão Técnica</Label>
                     <Input
                       type="number"
                       min={0}
@@ -283,13 +370,33 @@ const Regulamento = () => {
                       onChange={(e) => updateRule("max_staff", parseInt(e.target.value) || 0)}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>Máx. Treinadores/Gênero</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={rules.max_coaches}
+                      onChange={(e) => updateRule("max_coaches", parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Máx. Substituições</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={rules.max_substitutions}
+                      onChange={(e) => updateRule("max_substitutions", parseInt(e.target.value) || 0)}
+                    />
+                  </div>
                 </div>
 
                 {/* Toggle switches */}
                 <div className="space-y-4">
                   <ToggleField
-                    label="Exige RG"
-                    description="Participante deve apresentar documento de identidade."
+                    label="Exige RG / Documento de Identidade"
+                    description="Art 23 – Participante deve apresentar documento de identidade válido."
                     checked={rules.requires_rg}
                     onChange={(v) => updateRule("requires_rg", v)}
                   />
@@ -307,20 +414,41 @@ const Regulamento = () => {
                   />
                 </div>
 
-                {/* Scoring system */}
-                <div className="space-y-2">
-                  <Label>Sistema de Pontuação</Label>
-                  <Select value={rules.scoring_system} onValueChange={(v) => updateRule("scoring_system", v)}>
-                    <SelectTrigger className="w-full sm:w-64">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pontos_corridos">Pontos corridos</SelectItem>
-                      <SelectItem value="mata_mata">Mata-mata</SelectItem>
-                      <SelectItem value="grupos_mata_mata">Fase de grupos + Mata-mata</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Inscription limits */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Máx. Modalidades por Atleta</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={5}
+                      value={rules.max_modalities_per_athlete}
+                      onChange={(e) => updateRule("max_modalities_per_athlete", parseInt(e.target.value) || 2)}
+                    />
+                    <p className="text-xs text-muted-foreground">Art 33.II – Máx 2 modalidades simultâneas</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Sistema de Pontuação</Label>
+                    <Select value={rules.scoring_system} onValueChange={(v) => updateRule("scoring_system", v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pontos_corridos">Pontos corridos</SelectItem>
+                        <SelectItem value="mata_mata">Mata-mata</SelectItem>
+                        <SelectItem value="grupos_mata_mata">Fase de grupos + Mata-mata</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
+                {/* Notes */}
+                {rules.notes && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <p className="text-xs font-medium text-primary">Notas do regulamento:</p>
+                    <p className="text-xs text-muted-foreground mt-1">{rules.notes}</p>
+                  </div>
+                )}
 
                 {/* Save */}
                 <div className="flex justify-end pt-2">
