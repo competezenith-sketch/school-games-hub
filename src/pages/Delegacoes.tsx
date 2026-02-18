@@ -37,6 +37,24 @@ const TYPE_OPTIONS = [
   { value: "clube", label: "Clube" },
 ];
 
+const MUNICIPIOS_RORAIMA = [
+  "Alto Alegre",
+  "Amajari",
+  "Boa Vista",
+  "Bonfim",
+  "Cantá",
+  "Caracaraí",
+  "Caroebe",
+  "Iracema",
+  "Mucajaí",
+  "Normandia",
+  "Pacaraima",
+  "Rorainópolis",
+  "São João da Baliza",
+  "São Luiz",
+  "Uiramutã",
+];
+
 interface DelegationForm {
   name: string;
   city: string;
@@ -156,6 +174,7 @@ const Delegacoes = () => {
 
       const rows = names.map((n) => ({
         name: n,
+        city: importType === "municipio" ? n : null,
         type: importType,
         org_id: orgId,
       }));
@@ -216,7 +235,21 @@ const Delegacoes = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Nomes (um por linha)</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Nomes (um por linha)</Label>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs"
+                      onClick={() => {
+                        setImportText(MUNICIPIOS_RORAIMA.join("\n"));
+                        setImportType("municipio");
+                      }}
+                    >
+                      Preencher com municípios de Roraima
+                    </Button>
+                  </div>
                   <Textarea
                     rows={10}
                     placeholder={"Escola Estadual João da Silva\nEscola Municipal Maria...\nColégio XYZ"}
