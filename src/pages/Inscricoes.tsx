@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SchoolSearch } from "@/components/SchoolSearch";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,24 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-// Adicione 'Check' e 'ChevronsUpDown' aos imports do lucide-react
-import {
-  Loader2,
-  ChevronRight,
-  ChevronLeft,
-  Users,
-  UserPlus,
-  UserMinus,
-  CheckCircle2,
-  AlertTriangle,
-  Send,
-  Info,
-  Check,             // <--- Novo
-  ChevronsUpDown,    // <--- Novo
-} from "lucide-react";
-
-// Adicione estes imports para o funcionamento do combobox
 import { cn } from "@/lib/utils";
+
+// Componentes do Shadcn para o Combobox
 import {
   Command,
   CommandEmpty,
@@ -41,6 +25,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+
+// Ícones (Importação unificada)
 import {
   Loader2,
   ChevronRight,
@@ -52,6 +38,8 @@ import {
   AlertTriangle,
   Send,
   Info,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 
 // ─── Types ───
@@ -167,7 +155,7 @@ function StepTeamSelection({
   const [modalityId, setModalityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [delegationId, setDelegationId] = useState(gestorDelegationId || "");
-  const [open, setOpen] = useState(false); // <--- Estado para abrir/fechar a busca
+  const [open, setOpen] = useState(false); // Estado para abrir/fechar a busca
 
   const { data: competitions = [] } = useQuery({
     queryKey: ["competitions-inscr", orgId],
