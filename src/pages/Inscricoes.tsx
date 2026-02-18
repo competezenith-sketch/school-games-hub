@@ -26,8 +26,16 @@ import {
 interface RulesConfig {
   min_athletes?: number;
   max_athletes?: number;
+  max_athletes_m?: number | null;
+  max_athletes_f?: number | null;
   birth_date_min?: string;
   birth_date_max?: string;
+  birth_year_min?: number;
+  birth_year_max?: number;
+  max_modalities_per_athlete?: number;
+  max_substitutions?: number;
+  max_coaches?: number;
+  notes?: string | null;
   [key: string]: unknown;
 }
 
@@ -64,14 +72,23 @@ function birthYearFromDate(dateStr: string | null): number | null {
   return new Date(dateStr).getFullYear();
 }
 
-function isAgeValid(birthDate: string | null, category: CategoryWithYears): { valid: boolean; reason?: string } {
+function isAgeValid(
+  birthDate: string | null,
+  category: CategoryWithYears,
+  rulesConfig?: RulesConfig
+): { valid: boolean; reason?: string } {
   const year = birthYearFromDate(birthDate);
   if (!year) return { valid: false, reason: "Data de nascimento não informada" };
-  if (category.year_min && year < category.year_min) {
-    return { valid: false, reason: `Nascido em ${year}, mínimo permitido: ${category.year_min}` };
+
+  // Use rules_config birth_year_min/max if available, otherwise fall back to category
+  const yearMin = rulesConfig?.birth_year_min ?? category.year_min;
+  const yearMax = rulesConfig?.birth_year_max ?? category.year_max;
+
+  if (yearMin && year < yearMin) {
+    return { valid: false, reason: `Nascido em ${year}, mínimo permitido: ${yearMin}` };
   }
-  if (category.year_max && year > category.year_max) {
-    return { valid: false, reason: `Nascido em ${year}, máximo permitido: ${category.year_max}` };
+  if (yearMax && year > yearMax) {
+    return { valid: false, reason: `Nascido em ${year}, máximo permitido: ${yearMax}` };
   }
   return { valid: true };
 }
@@ -270,7 +287,8 @@ function StepAthleteSelection({
   onNext: () => void;
 }) {
   const category = rule.category;
-  const maxAthletes = (rule.rules_config as RulesConfig)?.max_athletes ?? 99;
+  const rulesConfig = rule.rules_config as RulesConfig;
+  const maxAthletes = rulesConfig?.max_athletes ?? 99;
   const enrolledIds = new Set(enrolled.map((e) => e.id));
 
   const { data: participants = [], isLoading } = useQuery({
@@ -295,7 +313,7 @@ function StepAthleteSelection({
       toast.error(`Limite de ${maxAthletes} atletas atingido.`);
       return;
     }
-    const check = isAgeValid(p.birth_date, category);
+    const check = isAgeValid(p.birth_date, category, rulesConfig);
     if (!check.valid) {
       toast.error(`Atleta "${p.full_name}" bloqueado: ${check.reason}`);
       return;
@@ -332,7 +350,7 @@ function StepAthleteSelection({
             ) : (
               <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
                 {available.map((p) => {
-                  const ageCheck = isAgeValid(p.birth_date, category);
+                  const ageCheck = isAgeValid(p.birth_date, category, rulesConfig);
                   const year = birthYearFromDate(p.birth_date);
                   return (
                     <div key={p.id} className="flex items-center gap-3 rounded-lg border p-2.5">
