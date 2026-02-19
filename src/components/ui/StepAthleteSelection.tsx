@@ -13,7 +13,7 @@ const MATRICULA_LIMITE = new Date("2026-03-06");
 
 interface Props {
   orgId: string;
-  rule: any; // min_athletes, max_athletes, modality_type, gender_restriction, category (year_min/max, event_type)
+  rule: any;
   enrolled: any[];
   onAdd: (athlete: any) => void;
   onRemove: (id: string) => void;
@@ -21,26 +21,34 @@ interface Props {
   onNext: () => void;
 }
 
-// Razões pelas quais um atleta pode ser bloqueado
 type BlockReason = "limite" | "matricula" | "genero" | "modalidade_individual" | "modalidade_coletiva" | null;
 
 export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, onBack, onNext }: Props) => {
+  const genderRestriction: string = rule.gender_restriction ?? "X";
+  const yearMin = rule.categories?.year_min ?? rule.category?.year_min;
+  const yearMax = rule.categories?.year_max ?? rule.category?.year_max;
+  const modalityType: string = rule.modality_type ?? "coletiva";
+  const isJerps: boolean = rule.categories?.event_type === "jerps" || rule.category?.event_type === "jerps";
 
-  // 1. Atletas elegíveis por faixa etária
+  // 1. Busca Atletas já filtrando Gênero no Banco (Mais eficiente)
   const { data: eligibleAthletes = [], isLoading } = useQuery({
-    queryKey: ["eligible-athletes", orgId, rule.category_id],
+    queryKey: ["eligible-athletes", orgId, rule.category_id, genderRestriction],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("participants")
         .select("id, full_name, birth_date, sex, enrollment_date, org_id")
         .eq("org_id", orgId)
         .eq("role", "atleta");
 
+      // Filtro direto no Supabase
+      if (genderRestriction !== "X") {
+        query = query.eq("sex", genderRestriction);
+      }
+
+      const { data } = await query;
       if (!data) return [];
 
-      const yearMin = rule.categories?.year_min ?? rule.category?.year_min;
-      const yearMax = rule.categories?.year_max ?? rule.category?.year_max;
-
+      // Filtro de idade
       return data.filter((a) => {
         const birthYear = new Date(a.birth_date).getFullYear();
         return birthYear >= yearMin && birthYear <= yearMax;
@@ -48,13 +56,12 @@ export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, o
     },
   });
 
-  // 2. Inscrições ativas destes atletas (para verificar regra 1+1)
+  // 2. Busca Inscrições Ativas
   const athleteIds = eligibleAthletes.map((a: any) => a.id);
   const { data: existingInscriptions = [] } = useQuery({
     queryKey: ["athlete-inscriptions-check", athleteIds, rule.competition_id],
     enabled: athleteIds.length > 0,
     queryFn: async () => {
-      if (athleteIds.length === 0) return [];
       const { data } = await supabase
         .from("inscriptions")
         .select(`
@@ -70,7 +77,6 @@ export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, o
     },
   });
 
-  // Mapa: participant_id → tipos de modalidade já inscritos
   const inscriptionMap: Record<string, Set<string>> = {};
   for (const i of existingInscriptions as any[]) {
     const pid = i.participant_id;
@@ -79,33 +85,19 @@ export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, o
     if (mtype) inscriptionMap[pid].add(mtype);
   }
 
-  const modalityType: string = rule.modality_type ?? "coletiva";
-  const genderRestriction: string = rule.gender_restriction ?? "X";
-  const isJerps: boolean = rule.categories?.event_type === "jerps" || rule.category?.event_type === "jerps";
-
-  // Determina o motivo de bloqueio de um atleta (ou null se pode ser adicionado)
   const getBlockReason = (athlete: any): BlockReason => {
-    if (enrolled.some((e) => e.id === athlete.id)) return null; // já selecionado, botão de remover aparece
-
-    // Limite de vagas atingido
+    if (enrolled.some((e) => e.id === athlete.id)) return null;
     if (enrolled.length >= rule.max_athletes) return "limite";
-
-    // Matrícula fora do prazo
     if (athlete.enrollment_date && isAfter(new Date(athlete.enrollment_date), MATRICULA_LIMITE))
       return "matricula";
-
-    // Gênero incompatível (X = misto, aceita todos)
     if (genderRestriction !== "X" && athlete.sex !== genderRestriction) return "genero";
 
-    // Regra 1+1: verificar inscrições existentes no mesmo campeonato
     const existing = inscriptionMap[athlete.id];
     if (existing) {
       if (modalityType === "individual" && existing.has("individual")) return "modalidade_individual";
-      // JERP's: só 1 individual, sem coletiva
       if (isJerps && modalityType === "coletiva") return "modalidade_coletiva";
       if (!isJerps && modalityType === "coletiva" && existing.has("coletiva")) return "modalidade_coletiva";
     }
-
     return null;
   };
 
@@ -113,68 +105,42 @@ export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, o
     limite: "Limite de atletas atingido",
     matricula: "Matrícula fora do prazo (máx. 06/03/2026)",
     genero: `Categoria restrita ao sexo ${genderRestriction === "M" ? "masculino" : "feminino"}`,
-    modalidade_individual: "Atleta já inscrito em uma modalidade individual neste campeonato",
-    modalidade_coletiva: isJerps
-      ? "JERP's: apenas 1 modalidade individual por atleta"
-      : "Atleta já inscrito em uma modalidade coletiva neste campeonato",
+    modalidade_individual: "Atleta já inscrito em uma individual",
+    modalidade_coletiva: isJerps ? "JERP's: apenas 1 individual" : "Atleta já inscrito em uma coletiva",
   };
 
-  const isLimitReached = enrolled.length >= rule.max_athletes;
   const isMinReached = enrolled.length >= (rule.min_athletes ?? 1);
 
   return (
     <div className="space-y-6">
-      {/* Header da modalidade */}
-      <Card className="p-4 bg-primary/5 border-primary/20">
+      <Card className="p-4 bg-primary/5 border-primary/20 shadow-none">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="font-black uppercase text-lg">{rule.modalities?.name ?? rule.modality?.name}</h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-xs font-bold text-muted-foreground uppercase">
+            <h3 className="font-black uppercase text-lg text-primary">{rule.modalities?.name ?? rule.modality?.name}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 {rule.categories?.name ?? rule.category?.name}
               </p>
-              {genderRestriction !== "X" && (
-                <Badge variant="outline" className="text-[9px] h-4 uppercase">
-                  {genderRestriction === "M" ? "Masculino" : "Feminino"}
-                </Badge>
-              )}
-              <Badge variant="secondary" className="text-[9px] h-4 uppercase">
-                {modalityType}
-              </Badge>
-              {isJerps && (
-                <Badge className="text-[9px] h-4 uppercase bg-purple-100 text-purple-700 border-purple-200">
-                  JERP's
-                </Badge>
-              )}
+              <Badge variant="secondary" className="text-[9px] h-4 uppercase">{modalityType}</Badge>
+              {isJerps && <Badge className="text-[9px] h-4 uppercase bg-purple-600">JERP'S</Badge>}
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Vagas Preenchidas</p>
-            <span className={cn("text-2xl font-black", isLimitReached ? "text-primary" : "text-foreground")}>
-              {enrolled.length} / {rule.max_athletes}
-            </span>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Vagas</p>
+            <span className="text-2xl font-black">{enrolled.length}/{rule.max_athletes}</span>
           </div>
         </div>
-
-        {!isMinReached && (
-          <div className="mt-3 flex items-center gap-2 text-amber-600 bg-amber-50 p-2 rounded text-[10px] font-bold uppercase">
-            <Info className="h-3 w-3 shrink-0" />
-            Mínimo de {rule.min_athletes} atleta(s) necessário para validar.
-          </div>
-        )}
       </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Atletas elegíveis */}
         <div className="space-y-3">
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-            Atletas Elegíveis ({eligibleAthletes.length})
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex justify-between">
+            <span>Disponíveis</span>
+            <span>{eligibleAthletes.length}</span>
           </p>
-          <ScrollArea className="h-[400px] pr-4">
+          <ScrollArea className="h-[380px] pr-4 border rounded-lg bg-card/50">
             {isLoading ? (
-              <p className="text-xs text-muted-foreground text-center pt-8">Carregando...</p>
-            ) : eligibleAthletes.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center pt-8">Nenhum atleta elegível encontrado.</p>
+              <div className="p-8 text-center text-xs animate-pulse">Carregando atletas...</div>
             ) : (
               eligibleAthletes.map((athlete: any) => {
                 const isSelected = enrolled.some((e) => e.id === athlete.id);
@@ -182,117 +148,47 @@ export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, o
                 const isBlocked = blockReason !== null;
 
                 return (
-                  <Card
-                    key={athlete.id}
-                    className={cn(
-                      "p-3 mb-2 flex items-center justify-between transition-all",
-                      isSelected && "bg-primary/10 border-primary",
-                      isBlocked && !isSelected && "opacity-50",
-                      !isSelected && !isBlocked && "hover:border-primary/50"
-                    )}
-                  >
+                  <div key={athlete.id} className={cn("p-3 m-2 border rounded-md flex items-center justify-between bg-background", isSelected && "border-primary ring-1 ring-primary/20", isBlocked && "opacity-40")}>
                     <div className="min-w-0">
-                      <p className="font-bold text-xs uppercase truncate">{athlete.full_name}</p>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        <span className="text-[9px] text-muted-foreground uppercase">
-                          Nasc: {new Date(athlete.birth_date).getFullYear()}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground uppercase">
-                          {athlete.sex === "M" ? "Masc" : "Fem"}
-                        </span>
-                        {isBlocked && blockReason !== "limite" && (
-                          <TooltipProvider delayDuration={100}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="flex items-center gap-0.5 text-[9px] text-red-500 uppercase font-bold cursor-help">
-                                  <AlertTriangle className="h-2.5 w-2.5" />
-                                  {blockReason === "matricula" && "Matrícula"}
-                                  {blockReason === "genero" && "Gênero"}
-                                  {(blockReason === "modalidade_individual" || blockReason === "modalidade_coletiva") && "1+1"}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="right" className="text-xs max-w-[200px]">
-                                {blockMessages[blockReason]}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
+                      <p className="font-bold text-[11px] uppercase truncate">{athlete.full_name}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase">{athlete.sex} · Nasc: {new Date(athlete.birth_date).getFullYear()}</p>
                     </div>
-
                     {isSelected ? (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive h-8 w-8 shrink-0"
-                        onClick={() => onRemove(athlete.id)}
-                      >
-                        <UserMinus className="h-4 w-4" />
-                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onRemove(athlete.id)}><UserMinus className="h-4 w-4" /></Button>
                     ) : (
-                      <TooltipProvider delayDuration={100}>
+                      <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8 shrink-0"
-                                disabled={isBlocked}
-                                onClick={() => onAdd(athlete)}
-                              >
-                                <UserPlus className="h-4 w-4" />
-                              </Button>
+                              <Button size="icon" variant="outline" className="h-7 w-7" disabled={isBlocked} onClick={() => onAdd(athlete)}><UserPlus className="h-4 w-4" /></Button>
                             </span>
                           </TooltipTrigger>
-                          {isBlocked && (
-                            <TooltipContent side="left" className="text-xs max-w-[200px]">
-                              {blockMessages[blockReason!]}
-                            </TooltipContent>
-                          )}
+                          {isBlocked && <TooltipContent className="bg-destructive text-white border-none text-[10px] uppercase font-bold">{blockMessages[blockReason]}</TooltipContent>}
                         </Tooltip>
                       </TooltipProvider>
                     )}
-                  </Card>
+                  </div>
                 );
               })
             )}
           </ScrollArea>
         </div>
 
-        {/* Composição da equipe */}
         <div className="space-y-3">
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-            Composição da Equipe ({enrolled.length}/{rule.max_athletes})
-          </p>
-          <div className="bg-muted/30 rounded-lg p-4 h-[400px] border-2 border-dashed flex flex-col">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Equipe</p>
+          <div className="bg-muted/20 rounded-lg p-2 h-[380px] border-2 border-dashed flex flex-col">
             {enrolled.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-50">
-                <Users className="h-10 w-10 mb-2" />
-                <p className="text-[10px] font-bold uppercase">Nenhum atleta selecionado</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground/40">
+                <Users className="h-8 w-8 mb-1" />
+                <p className="text-[9px] font-bold uppercase">Vazio</p>
               </div>
             ) : (
               <ScrollArea className="flex-1">
                 {enrolled.map((athlete: any) => (
-                  <div
-                    key={athlete.id}
-                    className="flex items-center gap-2 bg-background p-2 rounded mb-2 border"
-                  >
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-bold uppercase truncate block">{athlete.full_name}</span>
-                      <span className="text-[9px] text-muted-foreground">
-                        {athlete.sex === "M" ? "Masculino" : "Feminino"} · {new Date(athlete.birth_date).getFullYear()}
-                      </span>
-                    </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-destructive h-6 w-6 shrink-0"
-                      onClick={() => onRemove(athlete.id)}
-                    >
-                      <UserMinus className="h-3 w-3" />
-                    </Button>
+                  <div key={athlete.id} className="flex items-center gap-2 bg-background p-2 rounded mb-1.5 border shadow-sm">
+                    <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+                    <span className="text-[10px] font-bold uppercase flex-1 truncate">{athlete.full_name}</span>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => onRemove(athlete.id)}><UserMinus className="h-3 w-3" /></Button>
                   </div>
                 ))}
               </ScrollArea>
@@ -301,10 +197,10 @@ export const StepAthleteSelection = ({ orgId, rule, enrolled, onAdd, onRemove, o
         </div>
       </div>
 
-      <div className="flex justify-between pt-6 border-t">
-        <Button variant="outline" onClick={onBack}>Voltar</Button>
-        <Button disabled={!isMinReached} onClick={onNext} className="px-10">
-          Finalizar Inscrição
+      <div className="flex justify-between pt-4 border-t">
+        <Button variant="outline" onClick={onBack} size="sm" className="uppercase font-bold text-[10px]">Voltar</Button>
+        <Button disabled={!isMinReached} onClick={onNext} size="sm" className="px-8 uppercase font-bold text-[10px]">
+          {isMinReached ? "Próximo Passo" : `Faltam ${rule.min_athletes - enrolled.length} atleta(s)`}
         </Button>
       </div>
     </div>
