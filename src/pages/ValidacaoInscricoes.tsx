@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, XCircle, Clock, FileCheck } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, FileCheck, AlertTriangle, ShieldCheck, ShieldX } from "lucide-react";
 
 const statusLabels: Record<string, string> = {
   pendente: "Pendente",
@@ -26,6 +27,22 @@ const statusColors: Record<string, string> = {
   rascunho: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
   enviado: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
 };
+
+// Ícone de documento com tooltip
+const DocIcon = ({ ok, label }: { ok: boolean | null; label: string }) => (
+  <TooltipProvider delayDuration={100}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={`text-xs font-mono px-1 rounded ${ok ? "text-green-600" : "text-red-400"}`}>
+          {ok ? "✓" : "✗"}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">
+        {label}: {ok ? "OK" : "Ausente"}
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
 
 const ValidacaoInscricoes = () => {
   const { user } = useAuth();
@@ -55,6 +72,7 @@ const ValidacaoInscricoes = () => {
     },
   });
 
+  // Busca inscrições com dados de elegibilidade via participant_eligibility view
   const { data: inscriptions = [], isLoading } = useQuery({
     queryKey: ["inscriptions-validation", competitionId, filterStatus],
     enabled: !!competitionId,
@@ -63,13 +81,17 @@ const ValidacaoInscricoes = () => {
         .from("inscriptions")
         .select(`
           id, status, created_at, notes,
-          participant:participants(id, full_name, birth_date, sex, role, photo_url),
+          is_substitution, substitution_fee_paid,
+          participant:participants(
+            id, full_name, birth_date, sex, role, photo_url, enrollment_date
+          ),
           delegation:delegations(id, name),
           competition_rule:competition_rules(
             id,
             competition_id,
+            modality_type,
             modality:modalities(name),
-            category:categories(name)
+            category:categories(name, event_type)
           )
         `)
         .eq("org_id", orgId);
@@ -81,15 +103,42 @@ const ValidacaoInscricoes = () => {
       const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
 
-      // Filter by competition through competition_rule
-      if (competitionId) {
-        return (data as any[]).filter(
-          (i) => i.competition_rule?.competition_id === competitionId
-        );
-      }
-      return data;
+      let filtered = competitionId
+        ? (data as any[]).filter((i) => i.competition_rule?.competition_id === competitionId)
+        : (data as any[]);
+
+      if (filtered.length === 0) return [];
+
+      // Buscar elegibilidade de documentos para todos os participantes retornados
+      const participantIds = [...new Set(filtered.map((i: any) => i.participant?.id).filter(Boolean))];
+
+      const { data: eligibility } = await supabase
+        .from("participant_eligibility")
+        .select("participant_id, has_credencial, has_doc_foto, has_termo, has_laudo, doc_status")
+        .in("participant_id", participantIds);
+
+      const eligibilityMap = Object.fromEntries(
+        (eligibility ?? []).map((e: any) => [e.participant_id, e])
+      );
+
+      return filtered.map((i: any) => ({
+        ...i,
+        eligibility: eligibilityMap[i.participant?.id] ?? null,
+      }));
     },
   });
+
+  const isJerps = (insc: any) =>
+    insc.competition_rule?.category?.event_type === "jerps";
+
+  // Participante está apto para ser validado?
+  const isEligible = (insc: any) => {
+    const el = insc.eligibility;
+    if (!el) return false;
+    const basicDocs = el.has_credencial && el.has_doc_foto && el.has_termo;
+    if (isJerps(insc)) return basicDocs && el.has_laudo;
+    return basicDocs;
+  };
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -121,7 +170,16 @@ const ValidacaoInscricoes = () => {
     onError: (err: any) => toast.error(err.message),
   });
 
-  const pendingIds = inscriptions.filter((i: any) => i.status === "pendente").map((i: any) => i.id);
+  // Apenas pendentes E com documentação completa podem ser validados em lote
+  const eligiblePendingIds = inscriptions
+    .filter((i: any) => i.status === "pendente" && isEligible(i))
+    .map((i: any) => i.id);
+
+  const pendingIds = inscriptions
+    .filter((i: any) => i.status === "pendente")
+    .map((i: any) => i.id);
+
+  const blockedCount = pendingIds.length - eligiblePendingIds.length;
 
   return (
     <div className="space-y-6">
@@ -157,14 +215,24 @@ const ValidacaoInscricoes = () => {
             </Select>
           </div>
           {pendingIds.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => bulkValidateMutation.mutate(pendingIds)}
-              disabled={bulkValidateMutation.isPending}
-            >
-              {bulkValidateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Validar Todos ({pendingIds.length})
-            </Button>
+            <div className="flex flex-col gap-1">
+              <Button
+                variant="outline"
+                onClick={() => bulkValidateMutation.mutate(eligiblePendingIds)}
+                disabled={bulkValidateMutation.isPending || eligiblePendingIds.length === 0}
+              >
+                {bulkValidateMutation.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                Validar Aptos ({eligiblePendingIds.length})
+              </Button>
+              {blockedCount > 0 && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {blockedCount} bloqueado(s) por documentação incompleta
+                </p>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -192,71 +260,125 @@ const ValidacaoInscricoes = () => {
                       <TableHead>Delegação</TableHead>
                       <TableHead>Modalidade</TableHead>
                       <TableHead>Categoria</TableHead>
+                      <TableHead>Documentos</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {inscriptions.map((insc: any) => (
-                      <TableRow key={insc.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {insc.participant?.photo_url && (
-                              <img src={insc.participant.photo_url} className="h-7 w-7 rounded-full object-cover" />
+                    {inscriptions.map((insc: any) => {
+                      const el = insc.eligibility;
+                      const jerps = isJerps(insc);
+                      const eligible = isEligible(insc);
+
+                      return (
+                        <TableRow key={insc.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {insc.participant?.photo_url && (
+                                <img src={insc.participant.photo_url} className="h-7 w-7 rounded-full object-cover" />
+                              )}
+                              <div>
+                                <span className="font-medium text-sm">{insc.participant?.full_name ?? "—"}</span>
+                                {insc.is_substitution && (
+                                  <span className="ml-1 text-[10px] bg-orange-100 text-orange-700 px-1 rounded">
+                                    SUB{insc.substitution_fee_paid ? " ✓" : " ⚠"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{insc.delegation?.name ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{insc.competition_rule?.modality?.name ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{insc.competition_rule?.category?.name ?? "—"}</TableCell>
+
+                          {/* Checklist de documentos */}
+                          <TableCell>
+                            {el ? (
+                              <div className="flex items-center gap-0.5">
+                                <DocIcon ok={el.has_credencial} label="Credencial" />
+                                <DocIcon ok={el.has_doc_foto} label="Doc. Foto" />
+                                <DocIcon ok={el.has_termo} label="Termo" />
+                                {jerps && <DocIcon ok={el.has_laudo} label="Laudo Médico" />}
+                                <span className="ml-1">
+                                  {eligible
+                                    ? <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
+                                    : <ShieldX className="h-3.5 w-3.5 text-red-400" />
+                                  }
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
-                            <span className="font-medium text-sm">{insc.participant?.full_name ?? "—"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm">{insc.delegation?.name ?? "—"}</TableCell>
-                        <TableCell className="text-sm">{insc.competition_rule?.modality?.name ?? "—"}</TableCell>
-                        <TableCell className="text-sm">{insc.competition_rule?.category?.name ?? "—"}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[insc.status] ?? ""}`}>
-                            {statusLabels[insc.status] ?? insc.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {new Date(insc.created_at).toLocaleDateString("pt-BR")}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-1">
-                            {insc.status === "pendente" && (
-                              <>
+                          </TableCell>
+
+                          <TableCell>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[insc.status] ?? ""}`}>
+                              {statusLabels[insc.status] ?? insc.status}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(insc.created_at).toLocaleDateString("pt-BR")}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-1">
+                              {insc.status === "pendente" && (
+                                <>
+                                  <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-green-600 hover:text-green-700 hover:bg-green-50 disabled:opacity-30"
+                                            onClick={() => {
+                                              if (!eligible) {
+                                                toast.error("Documentação incompleta. Verifique credencial, doc. com foto e termo de responsabilidade.");
+                                                return;
+                                              }
+                                              updateStatusMutation.mutate({ id: insc.id, status: "validado" });
+                                            }}
+                                            disabled={updateStatusMutation.isPending}
+                                          >
+                                            <CheckCircle2 className="h-4 w-4" />
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {!eligible && (
+                                        <TooltipContent side="left" className="text-xs max-w-[200px]">
+                                          Documentação incompleta — não é possível validar
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => updateStatusMutation.mutate({ id: insc.id, status: "rejeitado" })}
+                                    disabled={updateStatusMutation.isPending}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                              {insc.status === "rejeitado" && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  onClick={() => updateStatusMutation.mutate({ id: insc.id, status: "validado" })}
+                                  onClick={() => updateStatusMutation.mutate({ id: insc.id, status: "pendente" })}
                                   disabled={updateStatusMutation.isPending}
                                 >
-                                  <CheckCircle2 className="h-4 w-4" />
+                                  <Clock className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => updateStatusMutation.mutate({ id: insc.id, status: "rejeitado" })}
-                                  disabled={updateStatusMutation.isPending}
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                            {insc.status === "rejeitado" && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => updateStatusMutation.mutate({ id: insc.id, status: "pendente" })}
-                                disabled={updateStatusMutation.isPending}
-                              >
-                                <Clock className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
